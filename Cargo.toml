@@ -1,5 +1,5 @@
 [package]
-name = "Zeus_Engine"
+name = "zeus_engine"
 version = "0.1.0"
 authors = ["Vasilis Mourtzis <vasilis.mourtzis@outlook.com>"]
 edition = "2018"

@@ -1,3 +1,8 @@
+mod math;
+
+use math::matrix;
+
 fn main() {
-    println!("Hello, world!");
+    let matrix = matrix::Matrix4::new();
+    println!("{:?}", matrix);
 }
