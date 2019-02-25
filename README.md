@@ -1,6 +1,6 @@
 # Zeus Engine
 
-This is my try of a small Rust Graphics Engine.
+This is my try of a small Graphics Engine written with Rust.
 
 ## Userful links
 - [Game Engine Overview](https://www.quora.com/How-do-I-build-a-game-engine)

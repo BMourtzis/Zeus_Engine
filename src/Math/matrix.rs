@@ -58,8 +58,16 @@ impl Matrix4 {
 
     }
 
-    pub fn tranpose(&self){
+    pub fn transpose(&self) -> Matrix4{
+        let result = new();
 
+        for i in 0..4 {
+            for j in 0..4 {
+                result [j][i] = &self.entries[i][j];
+            }
+        }
+
+        result
     }
 }
 
