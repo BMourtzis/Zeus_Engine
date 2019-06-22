@@ -1,4 +1,4 @@
-use super::vector::Vector3;
+use crate::math::vector::Vector3;
 
 #[derive(Debug)]
 pub struct Matrix4 {
@@ -10,7 +10,7 @@ impl Matrix4 {
         Matrix4 { entries: [[0.0; 4]; 4]}
     }
 
-    pub fn identity() -> Matrix4{
+    pub fn identity() -> Matrix4 {
         let mut result = Matrix4::new();
 
         for i in 0..4{
@@ -58,12 +58,12 @@ impl Matrix4 {
 
     }
 
-    pub fn transpose(&self) -> Matrix4{
-        let result = new();
+    pub fn transpose(self) -> Matrix4{
+        let mut result = Matrix4::new();
 
         for i in 0..4 {
             for j in 0..4 {
-                result [j][i] = &self.entries[i][j];
+                result.entries[j][i] = self.entries[i][j];
             }
         }
 
