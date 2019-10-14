@@ -4,9 +4,40 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "cargoBuild",
-            "type": "cargo",
-            "subcommand": "build",
+            "label": "Cargo Build",
+            "type": "shell",
+            "command": "cargo",
+            "args": ["build"],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "group": "Build"
+            }
+        },
+        {
+            "label": "Compile Shaders",
+            "type": "shell",
+            "command": "./src/render/shaders/compile.ps1",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "group": "Build"
+            },
+            "problemMatcher": [
+                "$msCompile"
+            ]
+        },
+        {
+            "label": "Build",
+            "dependsOn": [
+                "Cargo Build",
+                "Compile Shaders"
+            ],
             "problemMatcher": [
                 "$rustc"
             ]

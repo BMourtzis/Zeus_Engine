@@ -1,8 +1,10 @@
-mod math;
+pub mod render;
 
-use math::matrix;
+use render::ZeusEngine;
+use render::ProgramProc;
 
 fn main() {
-    let matrix = matrix::Matrix4::identity();
-    println!("{:?}", matrix);
+    let mut program_proc: ProgramProc = Default::default();
+    let mut app = ZeusEngine::new(&program_proc.events_loop);
+    program_proc.main_loop(&mut app);
 }
