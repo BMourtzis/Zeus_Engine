@@ -1,6 +1,6 @@
 if(Get-Command glslangValidator -ErrorAction SilentlyContinue)
 {
-    Set-Location -Path ".\src\render\shaders"
+    Set-Location -Path ".\src\render_old\shaders"
 
     Write-Host "Compiling vertex shader..." -ForegroundColor Yellow
     glslangValidator -V ./src/shader.vert -o ./spv/shader.vert.spv

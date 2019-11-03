@@ -10,7 +10,7 @@ use gfx_hal::{
     pass::Subpass,
     pool,
     prelude::*,
-    pso,
+    pso ,
     pso::{PipelineStage, ShaderStageFlags, VertexInputRate},
     queue::{QueueGroup, Submission},
     window
@@ -54,6 +54,7 @@ pub fn render() {
     env_logger::init();
 
     let event_loop = winit::event_loop::EventLoop::new();
+
     let dpi = event_loop.primary_monitor().hidpi_factor();
     let wb = winit::window::WindowBuilder::new()
         .with_min_inner_size(winit::dpi::LogicalSize::new(1.0, 1.0))
@@ -200,7 +201,7 @@ where B: gfx_hal::Backend
                         },
                         pso::DescriptorSetLayoutBinding {
                             binding: 1,
-                            ty: pso::DescriptorType::SampledImage,
+                            ty: pso::DescriptorType::Sampler,
                             count: 1,
                             stage_flags: ShaderStageFlags::FRAGMENT,
                             immutable_samplers: false
@@ -215,14 +216,14 @@ where B: gfx_hal::Backend
         let mut desc_pool = ManuallyDrop::new(
             unsafe {
                 device.create_descriptor_pool(
-                    1,
+                    1, //sets
                     &[
                         pso::DescriptorRangeDesc {
                             ty: pso::DescriptorType::SampledImage,
                             count: 1
                         },
                         pso::DescriptorRangeDesc {
-                            ty: pso::DescriptorType::SampledImage,
+                            ty: pso::DescriptorType::Sampler,
                             count: 1
                         }
                     ],
