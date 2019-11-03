@@ -2,10 +2,26 @@ extern crate gfx_hal;
 
 //NOTE: For now we only use Vulkan until we can undestand the layout and design a architecture
 extern crate gfx_backend_vulkan as back;
+extern crate image;
+
+mod adapter;
+mod backend;
+mod constants;
+mod buffer;
+mod desc;
+mod device;
+mod image;
+mod pass;
+mod pipeline;
+mod renderer;
+mod surface;
+mod swapchain;
+mod utils;
 
 use gfx_hal::{
-    buffer, command, format as f,
-    format::{AsFormat, ChannelType, Rgba8Srgb as ColorFormat, Swizzle},
+    adapter::{Adapter, MemoryType},
+    buffer, command,
+    format::{self as f, AsFormat, ChannelType, Swizzle},
     image as i, memory as m, pass,
     pass::Subpass,
     pool,
@@ -13,20 +29,34 @@ use gfx_hal::{
     pso ,
     pso::{PipelineStage, ShaderStageFlags, VertexInputRate},
     queue::{QueueGroup, Submission},
-    window
+    window,
+    Backend
 };
 
 use std::{
+    cell::RefCell,
+    rc::Rc,
     borrow::Borrow,
     io::Cursor,
+    mem::{size_of, ManuallyDrop},
     iter,
-    mem::{self, ManuallyDrop},
+    fs,
     ptr 
 };
 
-const DIMS: window::Extent2D = window::Extent2D { width: 1024, height: 768 };
+const DIMS: window::Extent2D = window::Extent2D { 
+    width: 1024, 
+    height: 768 
+};
+
+pub type ColorFormat = f::Rgba8Srgb;
 
 const ENTRY_NAME: &str = "main";
+
+struct Dimensions<T> {
+    width: T,
+    height: T
+}
 
 #[derive(Debug, Clone, Copy)]
 struct Vertex {
@@ -62,7 +92,7 @@ pub fn render() {
             winit::dpi::PhysicalSize::new(f64::from(DIMS.width), f64::from(DIMS.height)), 
             dpi
         ))
-        .with_title("quad".to_string());
+        .with_title("Zeus Engine V0.0.1".to_string());
 
     let (_window, instance, mut adapters, surface) = {
         let window = wb.build(&event_loop).unwrap();
@@ -115,6 +145,7 @@ pub fn render() {
                 _ => {}
             },
             winit::event::Event::EventsCleared => {
+                println!("Events Cleared");
                 renderer.render();
             }
             _ => {}
@@ -239,7 +270,7 @@ where B: gfx_hal::Backend
         println!("Memory Types {:?}", memory_types);
         let non_coherent_alignment = limits.non_coherent_atom_size as u64;
 
-        let buffer_stride = mem::size_of::<Vertex>() as u64;
+        let buffer_stride = size_of::<Vertex>() as u64;
         let buffer_len = QUAD.len() as u64 * buffer_stride;
         assert_ne!(buffer_len, 0);
         let padded_buffer_len = ((buffer_len + non_coherent_alignment - 1) / non_coherent_alignment) * non_coherent_alignment;
@@ -528,7 +559,7 @@ where B: gfx_hal::Backend
             }
         }
 
-        for i in 0 ..frames_in_flight {
+        for i in 0..frames_in_flight {
             submission_complete_semaphores.push(
                 device.create_semaphore()
                     .expect("Can't create semaphore")
@@ -610,7 +641,7 @@ where B: gfx_hal::Backend
                 });
                 pipeline_desc.vertex_buffers.push(pso::VertexBufferDesc {
                     binding: 0,
-                    stride: mem::size_of::<Vertex>() as u32,
+                    stride: size_of::<Vertex>() as u32,
                     rate: VertexInputRate::Vertex
                 });
 
@@ -736,7 +767,8 @@ where B: gfx_hal::Backend
                 .expect("Failed to wait for fence");
             self.device.reset_fence(fence)
                 .expect("Failed to reset fence");
-            self.cmd_pools[frame_idx].reset(false);
+            self.cmd_pools[frame_idx]
+                .reset(false);
         }
 
         //Rendering
@@ -800,7 +832,7 @@ where B: gfx_hal::Backend
 }
 
 impl<B> Drop for Renderer<B>
-where B: gfx_hal::Backend
+where B: Backend
 {
     fn drop(&mut self) {
         self.device.wait_idle().unwrap();

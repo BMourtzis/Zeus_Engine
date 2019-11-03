@@ -1,5 +1,8 @@
 pub mod render;
 
+#[macro_use]
+extern crate log;
+
 // use render::ZeusEngine;
 // use render::ProgramProc;
 
