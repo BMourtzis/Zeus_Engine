@@ -24,7 +24,7 @@ impl Matrix4 {
         result
     }
 
-    pub fn from_vectors(a: Vector3, b: Vector3, c: Vector3) -> Matrix4 {
+    pub fn from_vectors(a: &Vector3, b: &Vector3, c: &Vector3) -> Matrix4 {
         let mut result = Matrix4::new();
 
         result.entries[0][0] = a.x;
@@ -84,5 +84,13 @@ impl Matrix3
         Matrix3 {
             entries: [[0.0; 3]; 3]
         }
+    }
+}
+
+impl Default for Matrix3
+{
+    fn default() -> Self
+    {
+        Matrix3::new()
     }
 }

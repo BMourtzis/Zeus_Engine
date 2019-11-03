@@ -21,7 +21,7 @@
         {
             "label": "Compile Shaders",
             "type": "shell",
-            "command": "./src/render/shaders/compile.ps1",
+            "command": "./src/render_old/shaders/compile.ps1",
             "group": "build",
             "presentation": {
                 "reveal": "always",
