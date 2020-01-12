@@ -19,24 +19,9 @@
             }
         },
         {
-            "label": "Compile Shaders",
-            "type": "shell",
-            "command": "./src/render/shaders/compile.ps1",
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared",
-                "group": "Build"
-            },
-            "problemMatcher": [
-                "$msCompile"
-            ]
-        },
-        {
             "label": "Build",
             "dependsOn": [
                 "Cargo Build",
-                "Compile Shaders"
             ],
             "problemMatcher": [
                 "$rustc"

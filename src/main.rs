@@ -1,10 +1,7 @@
-pub mod render;
+mod render;
 
-use render::ZeusEngine;
-use render::ProgramProc;
+// #[macro_use] extern crate log;
 
 fn main() {
-    let mut program_proc: ProgramProc = Default::default();
-    let mut app = ZeusEngine::new(&program_proc.events_loop);
-    program_proc.main_loop(&mut app);
+    render::render();
 }
