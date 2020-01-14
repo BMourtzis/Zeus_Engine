@@ -112,29 +112,7 @@ impl<B: Backend> PipelineState<B> {
                     blend: Some(BlendState::ALPHA)
                 });
 
-                pipeline_desc.vertex_buffers.push(VertexBufferDesc {
-                    binding: 0,
-                    stride: size_of::<Vertex>() as u32,
-                    rate: VertexInputRate::Vertex
-                });
-
-                pipeline_desc.attributes.push(AttributeDesc {
-                    location: 0,
-                    binding: 0,
-                    element: Element {
-                        format: Format::Rg32Sfloat,
-                        offset: 0
-                    }
-                });
-
-                pipeline_desc.attributes.push(AttributeDesc {
-                    location: 1,
-                    binding: 0,
-                    element: Element {
-                        format: Format::Rg32Sfloat,
-                        offset: 8
-                    }
-                });
+                Vertex::inject_desc(&mut pipeline_desc);
 
                 device.create_graphics_pipeline(&pipeline_desc, None)
             };

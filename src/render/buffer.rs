@@ -350,3 +350,18 @@ impl<B: Backend> Drop for FramebufferState<B> {
         }
     }
 }
+
+
+//TODO: move the frame data into this struct
+// pub struct FrameData<B> {
+//     sid: Option<(
+//         &mut B::Fence,
+//         &mut B::Framebuffer,
+//         &mut B::CommandPool,
+//         &mut Vec<B::CommandBuffer>
+//     )>,
+//     pid: Option<(
+//         &mut B::Semaphore, 
+//         &mut B::Semaphore
+//     )> 
+// }

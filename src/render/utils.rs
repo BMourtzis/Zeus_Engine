@@ -2,7 +2,15 @@ use gfx_hal::{
     adapter::MemoryType,
     Backend,
     buffer::Usage,
-    pso::Descriptor
+    format::Format,
+    pso::{
+        Descriptor,
+        VertexBufferDesc,
+        VertexInputRate,
+        AttributeDesc,
+        Element,
+        GraphicsPipelineDesc
+    }
 };
 use super::{
     buffer::BufferState,
@@ -11,7 +19,8 @@ use super::{
 };
 use std::{
     rc::Rc,
-    cell::RefCell
+    cell::RefCell,
+    mem::size_of,
 };
 
 pub struct Dimensions<T> {
@@ -75,6 +84,43 @@ impl<B: Backend> Uniform<B> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
-    pub a_pos: [f32; 2],
+    pub a_pos: [f32; 3],
     pub a_uv: [f32; 2]
+}
+
+impl Vertex {
+    pub fn inject_desc<B: Backend>(pipeline_desc: &mut GraphicsPipelineDesc<B>) {
+        pipeline_desc.vertex_buffers.push(Self::get_vertex_buffer_description());
+
+        pipeline_desc.attributes.extend(Self::get_attribute_description().iter());
+    }
+
+    fn get_vertex_buffer_description() -> VertexBufferDesc {
+        VertexBufferDesc {
+            binding: 0,
+            stride: size_of::<Vertex>() as u32,
+            rate: VertexInputRate::Vertex
+        }
+    }
+
+    fn get_attribute_description() -> [AttributeDesc; 2] {
+        [
+            AttributeDesc {
+                location: 0,
+                binding: 0,
+                element: Element {
+                    format: Format::Rgb32Sfloat,
+                    offset: 0
+                }
+            },
+            AttributeDesc {
+                location: 1,
+                binding: 0,
+                element: Element {
+                    format: Format::Rg32Sfloat,
+                    offset: 12
+                }
+            }
+        ]
+    }
 }

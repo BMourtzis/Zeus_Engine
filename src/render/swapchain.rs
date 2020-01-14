@@ -43,7 +43,8 @@ impl<B: Backend> SwapchainState<B> {
         let format = formats.map_or(Format::Rgba8Srgb, |formats| {
             formats.iter()
                 .find(|format| format.base_format().1 == ChannelType::Srgb)
-                .map(|format| *format)
+                // .map(|format| *format)
+                .copied()
                 .unwrap_or(formats[0])
         });
 

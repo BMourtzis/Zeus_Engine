@@ -374,13 +374,13 @@ impl<B:Backend> RendererState<B> {
             self.device.borrow_mut().queues.queues[0].submit(submission, Some(framebuffer_fence));
             command_buffers.push(cmd_buffer);
 
-            if let Err(_) = self.swapchain.as_ref().unwrap()
+            if self.swapchain.as_ref().unwrap()
                 .swapchain.as_ref().unwrap()
                 .present(
                     &mut self.device.borrow_mut().queues.queues[0],
                     frame,
                     Some(&*image_present)
-                )
+                ).is_err()
             {
                 self.recreate_swapchain = true;
                 return;
@@ -388,10 +388,6 @@ impl<B:Backend> RendererState<B> {
         }
     }
 
-    //TODO: inject this from the outside somehow
-        //Try to move the viewport wit the input
-        // self.viewport.rect.x += 1;
-        // self.viewport.rect.y += 1;
     pub fn input(&mut self, kc: event::VirtualKeyCode) {
         match kc {
             event::VirtualKeyCode::Key0 => self.cur_value *= 10,
@@ -502,11 +498,11 @@ impl<B: Backend> Drop for RendererState<B> {
 }
 
 const QUAD: [Vertex; 6] = [
-    Vertex { a_pos: [ -1.0, 0.33], a_uv: [0.0, 1.0 ] },
-    Vertex { a_pos: [ 0.0, 0.33], a_uv: [1.0, 1.0 ] },
-    Vertex { a_pos: [ 0.0,-0.33], a_uv: [1.0, 0.0 ] },
+    Vertex { a_pos: [ -1.0, 0.33, 0.0], a_uv: [0.0, 1.0 ] },
+    Vertex { a_pos: [ 0.0, 0.33, 1.5], a_uv: [1.0, 1.0 ] },
+    Vertex { a_pos: [ 0.0,-0.33, 0.0], a_uv: [1.0, 0.0 ] },
 
-    Vertex { a_pos: [-1.0, 0.33], a_uv: [0.0, 1.0 ] },
-    Vertex { a_pos: [0.0, -0.33], a_uv: [1.0, 0.0 ] },
-    Vertex { a_pos: [-1.0, -0.33], a_uv: [0.0, 0.0 ] },
+    Vertex { a_pos: [ -1.0, 0.33, 0.0], a_uv: [0.0, 1.0 ] },
+    Vertex { a_pos: [ 0.0, -0.33, 1.0], a_uv: [1.0, 0.0 ] },
+    Vertex { a_pos: [ -1.0, -0.33, 0.0], a_uv: [0.0, 0.0 ] },
 ];
