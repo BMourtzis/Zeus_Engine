@@ -26,7 +26,10 @@ use gfx_hal::{
         CommandPoolCreateFlags,
         CommandPool
     },
-    buffer::Usage,
+    buffer::{
+        Usage,
+        IndexBufferView
+    },
     window::{
         SwapImageIndex,
         Swapchain
@@ -34,7 +37,8 @@ use gfx_hal::{
     queue::{
         Submission,
         CommandQueue
-    }
+    },
+    IndexType
 };
 
 use super::{
@@ -86,6 +90,7 @@ pub struct RendererState<B: Backend> {
     device: Rc<RefCell<DeviceState<B>>>,
     pub backend: BackendState<B>,
     vertex_buffer: BufferState<B>,
+    index_buffer: BufferState<B>,
     render_pass: RenderPassState<B>,
     uniform: Uniform<B>,
     pipeline: PipelineState<B>,
@@ -187,11 +192,18 @@ impl<B:Backend> RendererState<B> {
             &mut staging_pool
         );
 
-        let vertex_buffer = BufferState::new::<Vertex>(
-            Rc::clone(&device),
-            &QUAD,
-            Usage::VERTEX,
-            &backend.adapter.memory_types
+        let vertex_buffer = BufferState::new_vertex_buffer(
+            Rc::clone(&device), 
+            &VERTICES, 
+            &backend.adapter.memory_types, 
+            &mut staging_pool
+        );
+
+        let index_buffer = BufferState::new_index_buffer(
+            Rc::clone(&device), 
+            &INDICES, 
+            &backend.adapter.memory_types, 
+            &mut staging_pool
         );
 
         let uniform = Uniform::new(
@@ -231,6 +243,7 @@ impl<B:Backend> RendererState<B> {
             img_desc_pool,
             uniform_desc_pool,
             vertex_buffer,
+            index_buffer,
             uniform,
             render_pass,
             pipeline,
@@ -351,6 +364,13 @@ impl<B:Backend> RendererState<B> {
             
             cmd_buffer.bind_graphics_pipeline(self.pipeline.pipeline.as_ref().unwrap());
             cmd_buffer.bind_vertex_buffers(0, Some((self.vertex_buffer.get_buffer(), 0)));
+            cmd_buffer.bind_index_buffer(
+                IndexBufferView {
+                    buffer: self.index_buffer.get_buffer(),
+                    offset: 0,
+                    index_type: IndexType::U16
+                }
+            );
             cmd_buffer.bind_graphics_descriptor_sets(
                 self.pipeline.pipeline_layout.as_ref().unwrap(),
                 0,
@@ -361,7 +381,7 @@ impl<B:Backend> RendererState<B> {
                 &[]
             );
 
-            cmd_buffer.draw(0..6, 0..1);
+            cmd_buffer.draw_indexed(0..6, 0, 0..1);
             cmd_buffer.end_render_pass();
             cmd_buffer.finish();
 
@@ -374,13 +394,13 @@ impl<B:Backend> RendererState<B> {
             self.device.borrow_mut().queues.queues[0].submit(submission, Some(framebuffer_fence));
             command_buffers.push(cmd_buffer);
 
-            if let Err(_) = self.swapchain.as_ref().unwrap()
+            if self.swapchain.as_ref().unwrap()
                 .swapchain.as_ref().unwrap()
                 .present(
                     &mut self.device.borrow_mut().queues.queues[0],
                     frame,
                     Some(&*image_present)
-                )
+                ).is_err()
             {
                 self.recreate_swapchain = true;
                 return;
@@ -388,10 +408,6 @@ impl<B:Backend> RendererState<B> {
         }
     }
 
-    //TODO: inject this from the outside somehow
-        //Try to move the viewport wit the input
-        // self.viewport.rect.x += 1;
-        // self.viewport.rect.y += 1;
     pub fn input(&mut self, kc: event::VirtualKeyCode) {
         match kc {
             event::VirtualKeyCode::Key0 => self.cur_value *= 10,
@@ -501,12 +517,11 @@ impl<B: Backend> Drop for RendererState<B> {
     }
 }
 
-const QUAD: [Vertex; 6] = [
-    Vertex { a_pos: [ -1.0, 0.33], a_uv: [0.0, 1.0 ] },
-    Vertex { a_pos: [ 0.0, 0.33], a_uv: [1.0, 1.0 ] },
-    Vertex { a_pos: [ 0.0,-0.33], a_uv: [1.0, 0.0 ] },
-
-    Vertex { a_pos: [-1.0, 0.33], a_uv: [0.0, 1.0 ] },
-    Vertex { a_pos: [0.0, -0.33], a_uv: [1.0, 0.0 ] },
-    Vertex { a_pos: [-1.0, -0.33], a_uv: [0.0, 0.0 ] },
+const VERTICES: [Vertex; 4] = [
+    Vertex { a_pos: [ -0.5, 0.33, 0.0], a_uv: [0.0, 1.0 ] },
+    Vertex { a_pos: [ 0.5, 0.33, 0.0], a_uv: [1.0, 1.0 ] },
+    Vertex { a_pos: [ 0.5,-0.33, 0.0], a_uv: [1.0, 0.0 ] },
+    Vertex { a_pos: [ -0.5, -0.33, 0.0], a_uv: [0.0, 0.0 ] }
 ];
+
+const INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];

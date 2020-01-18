@@ -6,13 +6,21 @@ use gfx_hal::{
     image::{ Extent, ViewKind },
     memory::Properties,
     format::Swizzle,
-    pool::{CommandPool, CommandPoolCreateFlags}
+    pool::{CommandPool, CommandPoolCreateFlags},
+    command::{
+        Level,
+        CommandBufferFlags,
+        BufferCopy,
+        CommandBuffer
+    },
+    queue::CommandQueue
 };
 use std::{
     cell::RefCell,
     rc::Rc,
     mem::size_of,
-    ptr
+    ptr,
+    iter
 };
 use super::{
     adapter::AdapterState,
@@ -31,44 +39,62 @@ pub struct BufferState<B: Backend> {
 }
 
 impl<B: Backend> BufferState<B> {
+    ///Creates a new buffer and maps the memory
     pub unsafe fn new<T>(
         device_ptr: Rc<RefCell<DeviceState<B>>>,
         data_source: &[T],
         usage: Usage,
-        memory_types: &[MemoryType]
+        memory_types: &[MemoryType],
+        memory_properties: Properties
+    ) -> Self {
+        let buffer_state = BufferState::new_unmapped::<T>(Rc::clone(&device_ptr), data_source.len(), usage, memory_types, memory_properties);
+
+        let device = &device_ptr.borrow().device;
+
+        let stride = size_of::<T>();
+        let upload_size = data_source.len() * stride;
+
+        if let Some(mem) = &buffer_state.memory {
+            let mapping = device.map_memory(mem, 0 .. buffer_state.size).unwrap();
+            ptr::copy_nonoverlapping(data_source.as_ptr() as *const u8, mapping, upload_size);
+            device.unmap_memory(mem);
+        }
+
+        buffer_state
+    }
+
+    ///Creates new Buffer state without mapping the memory
+    pub unsafe fn new_unmapped<T>(
+        device_ptr: Rc<RefCell<DeviceState<B>>>,
+        data_length: usize,
+        usage: Usage,
+        memory_types: &[MemoryType],
+        memory_properties: Properties
     ) -> Self {
         let memory: B::Memory;
         let mut buffer: B::Buffer;
         let size: u64;
 
         let stride = size_of::<T>();
-        let upload_size = data_source.len() * stride;
+        let upload_size = data_length * stride;
 
         {
             let device = &device_ptr.borrow().device;
 
+            //TODO: Can we set sharing mode?
             buffer = device.create_buffer(upload_size as u64, usage).unwrap();
+            // println!("{:?}", buffer);
             let mem_req = device.get_buffer_requirements(&buffer);
 
-            // A note about performance: Using CPU_VISIBLE memory is convenient because it can be
-            // directly memory mapped and easily updated by the CPU, but it is very slow and so should
-            // only be used for small pieces of data that need to be updated very frequently. For something like
-            // a vertex buffer that may be much larger and should not change frequently, you should instead
-            // use a DEVICE_LOCAL buffer that gets filled by copying data from a CPU_VISIBLE staging buffer
             let upload_type = memory_types.iter()
                 .enumerate().position(|(id, mem_type)| {
                     mem_req.type_mask & (1 << id) != 0 
-                        && mem_type.properties.contains(Properties::CPU_VISIBLE | Properties::COHERENT)
+                        && mem_type.properties.contains(memory_properties)
                 }).unwrap().into();
             
             memory = device.allocate_memory(upload_type, mem_req.size).unwrap();
             device.bind_buffer_memory(&memory, 0, &mut buffer).unwrap();
             size = mem_req.size;
-
-            //TODO: check tranastions: read/write mapping and vertex buffer read
-            let mapping = device.map_memory(&memory, 0 .. size).unwrap();
-            ptr::copy_nonoverlapping(data_source.as_ptr() as *const u8, mapping, upload_size);
-            device.unmap_memory(&memory);
         }
 
         BufferState {
@@ -160,6 +186,104 @@ impl<B: Backend> BufferState<B> {
             row_pitch,
             stride
         )
+    }
+
+    //TODO: Should add a separate struct for vertex buffers to do all the staging and expose the fence,
+    //like image struct
+    pub unsafe fn new_vertex_buffer<T>(
+        device_ptr: Rc<RefCell<DeviceState<B>>>,
+        data_source: &[T],
+        memory_types: &[MemoryType],
+        staging_pool: &mut B::CommandPool
+    ) -> Self {
+        let staging_buffer = BufferState::new(
+            Rc::clone(&device_ptr),
+            data_source,
+            Usage::TRANSFER_SRC,
+            memory_types,
+            Properties::CPU_VISIBLE | Properties::COHERENT
+        );
+
+        let vertex_buffer = BufferState::new_unmapped::<T>(
+            Rc::clone(&device_ptr),
+            data_source.len(),
+            Usage::TRANSFER_DST | Usage::VERTEX,
+            memory_types,
+            Properties::DEVICE_LOCAL
+        );
+
+        let upload_size = (data_source.len() * size_of::<T>()) as u64;
+        let mut device = device_ptr.borrow_mut();
+
+        Self::copy_buffer(&mut device, &staging_buffer, &vertex_buffer, upload_size, staging_pool);
+
+        vertex_buffer
+    }
+
+    pub unsafe fn new_index_buffer<T> (
+        device_ptr: Rc<RefCell<DeviceState<B>>>,
+        data_source: &[T],
+        memory_types: &[MemoryType],
+        staging_pool: &mut B::CommandPool
+    ) -> Self {
+        let staging_buffer = BufferState::new(
+            Rc::clone(&device_ptr),
+            data_source,
+            Usage::TRANSFER_SRC,
+            memory_types,
+            Properties::CPU_VISIBLE | Properties::COHERENT
+        );
+
+        let index_buffer = BufferState::new_unmapped::<T>(
+            Rc::clone(&device_ptr),
+            data_source.len(),
+            Usage::TRANSFER_DST | Usage::INDEX,
+            memory_types,
+            Properties::DEVICE_LOCAL
+        );
+
+        let upload_size = (data_source.len() * size_of::<T>()) as u64;
+        let mut device = device_ptr.borrow_mut();
+
+        Self::copy_buffer(&mut device, &staging_buffer, &index_buffer, upload_size, staging_pool);
+
+        index_buffer
+    }
+
+    unsafe fn copy_buffer(
+        device: &mut DeviceState<B>,
+        src_buffer: &BufferState<B>,
+        dst_buffer: &BufferState<B>,
+        upload_size: u64,
+        staging_pool: &mut B::CommandPool
+    ) {
+        let transfered_buffer_fence = device.device.create_fence(false)
+            .expect("Can't create fence");
+
+        {
+            let mut cmd_buffer = staging_pool.allocate_one(Level::Primary);
+            cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
+
+            cmd_buffer.copy_buffer(
+                &src_buffer.get_buffer(),
+                &dst_buffer.get_buffer(), 
+                &[BufferCopy {
+                    src: 0,
+                    dst: 0,
+                    size: upload_size
+                }]
+            );
+
+            cmd_buffer.finish();
+
+            device.queues.queues[0].submit_without_semaphores(
+                iter::once(&cmd_buffer),
+                Some(&transfered_buffer_fence)
+            );
+        }
+
+        device.device.wait_for_fence(&transfered_buffer_fence, !0)
+            .unwrap();
     }
 }
 
@@ -350,3 +474,19 @@ impl<B: Backend> Drop for FramebufferState<B> {
         }
     }
 }
+
+
+//TODO: move the frame data into this struct
+//TODO: timeline set up
+// pub struct FrameData<B> {
+//     sid: Option<(
+//         &mut B::Fence,
+//         &mut B::Framebuffer,
+//         &mut B::CommandPool,
+//         &mut Vec<B::CommandBuffer>
+//     )>,
+//     pid: Option<(
+//         &mut B::Semaphore, 
+//         &mut B::Semaphore
+//     )> 
+// }

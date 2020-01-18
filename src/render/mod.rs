@@ -48,8 +48,8 @@ pub fn render() {
     let window_builder = WindowBuilder::new()
         .with_min_inner_size(LogicalSize::new(1.0, 1.0))
         .with_inner_size(LogicalSize::new(
-            DIMS.width as _,
-            DIMS.height as _
+            DIMS.width,
+            DIMS.height
         ))
         .with_title("Zeus Engine V0.1.0".to_string());
     
@@ -93,17 +93,17 @@ pub fn render() {
                             renderer_state.input(virtual_keycode);
                         }
                     },
-                    WindowEvent::RedrawRequested => {
-                        println!("RedrawRequested");
-                        renderer_state.draw();
-                    },
                     _ => ()
                 }
             },
-            Event::EventsCleared => {
+            Event::RedrawRequested(_) => {
+                println!("RedrawRequested");
+                renderer_state.draw();
+            },
+            Event::MainEventsCleared => {
                 renderer_state.backend.window.request_redraw();
                 // println!("EventsCleared");
-            }
+            },
             _ => ()
         }
     });
