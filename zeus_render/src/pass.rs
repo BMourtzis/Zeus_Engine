@@ -19,7 +19,7 @@ pub struct RenderPassState<B: Backend> {
 }
 
 impl<B: Backend> RenderPassState<B> {
-    pub unsafe fn new(swapchain: &SwapchainState<B>, device: Rc<RefCell<DeviceState<B>>>) -> Self {
+    pub fn new(swapchain: &SwapchainState<B>, device: Rc<RefCell<DeviceState<B>>>) -> Self {
         let render_pass = {
             let attachment = Attachment {
                 format: Some(swapchain.format),
@@ -37,9 +37,10 @@ impl<B: Backend> RenderPassState<B> {
                 preserves: &[]
             };
 
-            device.borrow()
-                .device.create_render_pass(&[attachment], &[subpass], &[])
-                .ok()
+            unsafe {
+                device.borrow()
+                    .device.create_render_pass(&[attachment], &[subpass], &[])
+            }.ok()
         };
 
         RenderPassState {

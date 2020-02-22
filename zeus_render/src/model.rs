@@ -24,6 +24,12 @@ use std::{
     mem::size_of,
 };
 
+use zeus_core::math::{
+    vector::Vector2,
+    vector::Vector3,
+    matrix::Matrix4
+};
+
 pub struct Dimensions<T> {
     pub width: T,
     pub height: T
@@ -43,7 +49,7 @@ pub struct Uniform<B: Backend> {
 }
 
 impl<B: Backend> Uniform<B> {
-    pub unsafe fn new<T>(
+    pub fn new<T>(
         device: Rc<RefCell<DeviceState<B>>>,
         memory_types: &[MemoryType],
         data: &[T],
@@ -86,8 +92,8 @@ impl<B: Backend> Uniform<B> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
-    pub a_pos: [f32; 3],
-    pub a_uv: [f32; 2]
+    pub a_pos: Vector3,
+    pub a_uv: Vector2
 }
 
 impl Vertex {
@@ -100,7 +106,7 @@ impl Vertex {
     fn get_vertex_buffer_description() -> VertexBufferDesc {
         VertexBufferDesc {
             binding: 0,
-            stride: size_of::<Vertex>() as u32,
+            stride: size_of::<Self>() as u32,
             rate: VertexInputRate::Vertex
         }
     }
@@ -124,5 +130,22 @@ impl Vertex {
                 }
             }
         ]
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct UniformBufferObject {
+    pub model: Matrix4,
+    pub view: Matrix4,
+    pub proj: Matrix4
+}
+
+impl UniformBufferObject {
+    pub fn new() -> UniformBufferObject {
+        UniformBufferObject {
+            model: Matrix4::new(),
+            view: Matrix4::new(),
+            proj: Matrix4::new()
+        }
     }
 }

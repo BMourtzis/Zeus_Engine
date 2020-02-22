@@ -1,6 +1,10 @@
-extern crate gfx_hal;
+#[macro_use]
+extern crate log;
+
+extern crate zeus_core;
 
 //NOTE: For now we only use Vulkan until we can undestand the layout and design a architecture
+extern crate gfx_hal;
 extern crate gfx_backend_vulkan as back;
 extern crate image as img;
 extern crate glsl_to_spirv;
@@ -16,21 +20,25 @@ mod pass;
 mod pipeline;
 mod renderer;
 mod swapchain;
-mod utils;
+mod model;
+mod camera;
+mod obj;
+mod framebuffer;
 
 use winit::{
     event_loop:: {
         EventLoop,
         ControlFlow
     },
-    window::WindowBuilder,
+    window::{
+        WindowBuilder
+    },
     dpi::LogicalSize,
     event::{
         Event,
         WindowEvent,
         KeyboardInput,
-        VirtualKeyCode,
-        ElementState
+        VirtualKeyCode
     }
 };
 
@@ -39,10 +47,11 @@ use self::{
     renderer::RendererState
 };
 
+use zeus_core::input;
+
 
 pub fn render() {
-    #[cfg(debug_assertions)]
-    env_logger::init();
+    info!("Starting up Zeus Engine V0.1.0");
 
     let event_loop = EventLoop::new();
     let window_builder = WindowBuilder::new()
@@ -55,14 +64,14 @@ pub fn render() {
     
     let backend = backend::create_backend(window_builder, &event_loop);
 
-    let mut renderer_state = unsafe {
-        RendererState::new(backend)
-    };
+    let mut renderer_state = RendererState::new(backend);
+    
+    renderer_state.load_level();
 
     renderer_state.draw();
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        // *control_flow = ControlFlow::Wait;
 
         match event {
             Event::WindowEvent { event, .. } => {
@@ -74,35 +83,35 @@ pub fn render() {
                         },
                         ..
                     } | WindowEvent::CloseRequested => {
+                        info!("Exiting Renderer!");
                         *control_flow = ControlFlow::Exit
                     },
                     WindowEvent::Resized(_dims) => {
-                        println!("Resize Event");
+                        debug!("Resizing window to {}x{}", _dims.width, _dims.height);
                         renderer_state.recreate_swapchain = true;
                     },
                     WindowEvent::KeyboardInput {
                         input: KeyboardInput {
                             virtual_keycode,
-                            state: ElementState::Pressed,
+                            state,
                             ..
                         },
                         ..
                     } => {
-                        // println!("Keyboard Input");
                         if let Some(virtual_keycode) = virtual_keycode {
-                            renderer_state.input(virtual_keycode);
+                            input::update_btn(virtual_keycode, state);
                         }
                     },
                     _ => ()
                 }
             },
             Event::RedrawRequested(_) => {
-                println!("RedrawRequested");
+                debug!("RedrawRequested");
                 renderer_state.draw();
             },
             Event::MainEventsCleared => {
                 renderer_state.backend.window.request_redraw();
-                // println!("EventsCleared");
+                debug!("EventsCleared");
             },
             _ => ()
         }

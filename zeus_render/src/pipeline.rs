@@ -13,6 +13,9 @@ use gfx_hal::{
         BlendState,
         GraphicsPipelineDesc,
         ColorBlendDesc,
+        Face,
+        FrontFace,
+        PolygonMode
     },
     pass::{
         Subpass
@@ -28,7 +31,7 @@ use std::{
 
 use super::{
     device::DeviceState,
-    utils::Vertex
+    model::Vertex
 };
 
 const ENTRY_NAME: &str = "main";
@@ -40,7 +43,7 @@ pub struct PipelineState<B: Backend> {
 }
 
 impl<B: Backend> PipelineState<B> {
-    pub unsafe fn new<IS>(
+    pub fn new<IS>(
         desc_layouts: IS,
         render_pass: &B::RenderPass,
         device_ptr: Rc<RefCell<DeviceState<B>>>
@@ -49,9 +52,36 @@ impl<B: Backend> PipelineState<B> {
         IS: IntoIterator,
         IS::Item: borrow::Borrow<B::DescriptorSetLayout>
     {
-        let device = &device_ptr.borrow().device;
-        let pipeline_layout = device.create_pipeline_layout(desc_layouts, &[(ShaderStageFlags::VERTEX, 0 .. 8)])
-            .expect("Could not create pipeline layout");
+        let mut pipeline = Self::empty(Rc::clone(&device_ptr));
+        pipeline.new_pipeline(
+            desc_layouts, 
+            &render_pass
+        );
+
+        pipeline
+    }
+
+    pub fn empty(device_ptr: Rc<RefCell<DeviceState<B>>>) -> Self {
+        PipelineState {
+            pipeline: None,
+            pipeline_layout: None,
+            device: Rc::clone(&device_ptr)
+        }
+    }
+
+    pub fn new_pipeline<IS>(
+        &mut self,
+        desc_layouts: IS,
+        render_pass: &B::RenderPass
+    )
+    where
+        IS: IntoIterator,
+        IS::Item: borrow::Borrow<B::DescriptorSetLayout> 
+    {
+        let device = &self.device.borrow().device;
+        let pipeline_layout = unsafe {
+            device.create_pipeline_layout(desc_layouts, &[(ShaderStageFlags::VERTEX, 0 .. 8)])
+        }.expect("Could not create pipeline layout");
 
         let pipeline = {
             let vs_module = create_shader_module::<B>(&device, "data/quad.vert", glsl_to_spirv::ShaderType::Vertex);
@@ -84,19 +114,19 @@ impl<B: Backend> PipelineState<B> {
                     main_pass: render_pass
                 };
 
-                // let rasterizer = Rasterizer {
-                //     polygon_mode: PolygonMode::Line(State::Static(2.0)),
-                //     cull_face: Face::empty(),
-                //     front_face: FrontFace::CounterClockwise,
-                //     depth_clamping: false,
-                //     depth_bias: Option::None,
-                //     conservative: false
-                // };
+                let rasterizer = Rasterizer {
+                    polygon_mode: PolygonMode::Fill,
+                    cull_face: Face::empty(),
+                    front_face: FrontFace::Clockwise,
+                    depth_clamping: false,
+                    depth_bias: Option::None,
+                    conservative: false
+                };
 
                 let mut pipeline_desc = GraphicsPipelineDesc::new(
                     shader_entries,
                     Primitive::TriangleList,
-                    Rasterizer::FILL,
+                    rasterizer,
                     &pipeline_layout,
                     subpass
                 );
@@ -108,19 +138,28 @@ impl<B: Backend> PipelineState<B> {
 
                 Vertex::inject_desc(&mut pipeline_desc);
 
-                device.create_graphics_pipeline(&pipeline_desc, None)
+                unsafe {
+                    device.create_graphics_pipeline(&pipeline_desc, None)
+                }.expect("Could not create graphics pipeline")
             };
 
-            device.destroy_shader_module(vs_module);
-            device.destroy_shader_module(fs_module);
+            unsafe {
+                device.destroy_shader_module(vs_module);
+                device.destroy_shader_module(fs_module);
+            }
 
-            pipeline.unwrap()
+            pipeline
         };
 
-        PipelineState {
-            pipeline: Some(pipeline),
-            pipeline_layout: Some(pipeline_layout),
-            device: Rc::clone(&device_ptr)
+        self.pipeline = Some(pipeline);
+        self.pipeline_layout = Some(pipeline_layout);
+    }
+
+    pub fn is_empty(&self) -> bool {
+        if let Some(_) = &self.pipeline {
+            false
+        } else {
+            true
         }
     }
 }
@@ -136,7 +175,7 @@ impl<B: Backend> Drop for PipelineState<B> {
 }
 
 
-unsafe fn create_shader_module<B: Backend>(
+fn create_shader_module<B: Backend>(
     device: &B::Device,
     path: &str,
     shader_type: glsl_to_spirv::ShaderType
@@ -146,5 +185,8 @@ unsafe fn create_shader_module<B: Backend>(
     let file = glsl_to_spirv::compile(&glsl, shader_type).unwrap();
     //Read SPIR-V and create shader module
     let spirv: Vec<u32> = pso::read_spirv(file).unwrap();
-    device.create_shader_module(&spirv).unwrap()
+    
+    unsafe {
+        device.create_shader_module(&spirv)
+    }.unwrap()
 }

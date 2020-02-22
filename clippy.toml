@@ -1,2 +1,3 @@
 too-many-lines-threshold = 600
 too-many-arguments-threshold = 15
+float_cmp = false

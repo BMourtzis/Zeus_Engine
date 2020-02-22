@@ -10,7 +10,10 @@ use std::{
     ptr
 };
 use super::adapter::AdapterState;
-use winit::window::Window;
+use winit::{
+    dpi::PhysicalPosition,
+    window::Window
+};
 
 pub struct BackendState<B: Backend> {
     instance: Option<B::Instance>,
@@ -37,10 +40,15 @@ pub fn create_backend(
     event_loop: &winit::event_loop::EventLoop<()>
 ) -> BackendState<back::Backend> {
     let window = wb.build(event_loop).unwrap();
+
+    window.set_outer_position(PhysicalPosition::new(1_300.0, 200.0));
+
     let instance = back::Instance::create("Zeus Engine V0.0.1", 1)
         .expect("Could not create instance");
+        
     let surface = unsafe {
-        instance.create_surface(&window).expect("Could not create Surface")
+        instance.create_surface(&window)
+            .expect("Could not create Surface")
     };
     let mut adapters = instance.enumerate_adapters();
 

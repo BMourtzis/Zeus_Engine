@@ -20,13 +20,14 @@ pub struct DescSetLayout<B: Backend> {
 }
 
 impl<B: Backend> DescSetLayout<B> {
-    pub unsafe fn new(
+    pub fn new(
         device: Rc<RefCell<DeviceState<B>>>,
         binding: Vec<DescriptorSetLayoutBinding>
     ) -> Self {
-        let desc_set_layout = device.borrow()
-            .device.create_descriptor_set_layout(binding, &[])
-            .ok();
+        let desc_set_layout = unsafe {
+            device.borrow()
+                .device.create_descriptor_set_layout(binding, &[])
+        }.ok();
 
         DescSetLayout {
             layout: desc_set_layout,
@@ -34,9 +35,10 @@ impl<B: Backend> DescSetLayout<B> {
         }
     }
 
-    pub unsafe fn create_desc_set(self, desc_pool: &mut B::DescriptorPool) -> DescSet<B> {
-        let desc_set = desc_pool.allocate_set(self.layout.as_ref().unwrap())
-            .unwrap();
+    pub fn create_desc_set(self, desc_pool: &mut B::DescriptorPool) -> DescSet<B> {
+        let desc_set = unsafe {
+            desc_pool.allocate_set(self.layout.as_ref().unwrap())
+        }.unwrap();
 
         DescSet {
             layout: self,
@@ -60,7 +62,7 @@ pub struct DescSet<B: Backend> {
 }
 
 impl<B: Backend> DescSet<B> {
-    pub unsafe fn write_to_state<'a, 'b: 'a, W> (
+    pub fn write_to_state<'a, 'b: 'a, W> (
         &'b mut self,
         write: Vec<DescSetWrite<W>>,
         device: &mut B::Device
@@ -74,7 +76,10 @@ impl<B: Backend> DescSet<B> {
                 descriptors: d.descriptors,
                 set
             }).collect();
-        device.write_descriptor_sets(write);
+
+        unsafe {
+            device.write_descriptor_sets(write)
+        };
     }
 
     pub fn get_layout(&self) -> &B::DescriptorSetLayout {

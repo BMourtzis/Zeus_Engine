@@ -75,7 +75,7 @@ pub struct ImageState<B: Backend> {
 }
 
 impl<B: Backend> ImageState<B> {
-    pub unsafe fn new(
+    pub fn new(
         mut desc: DescSet<B>,
         img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
         adapter: &AdapterState<B>,
@@ -95,34 +95,47 @@ impl<B: Backend> ImageState<B> {
         let device = &mut device_state.device;
 
         let kind = Kind::D2(dims.width as Size, dims.height as Size, 1, 1);
-        let mut image = device.create_image(
-            kind,
-            1,
-            Rgba8Srgb::SELF,
-            Tiling::Optimal,
-            Usage::TRANSFER_DST | Usage::SAMPLED,
-            ViewCapabilities::empty()
-        ).unwrap();
-        let req = device.get_image_requirements(&image);
+        
+        let mut image = unsafe {
+            device.create_image(
+                kind,
+                1,
+                Rgba8Srgb::SELF,
+                Tiling::Optimal,
+                Usage::TRANSFER_DST | Usage::SAMPLED,
+                ViewCapabilities::empty()
+            )
+        }.expect("Could not create image");
+        let req = unsafe {
+            device.get_image_requirements(&image)
+        };
 
         let device_type = adapter.memory_types
             .iter().enumerate().position(|(id, memory_type)| {
                 req.type_mask & (1 << id) != 0 && memory_type.properties.contains(Properties::DEVICE_LOCAL)
             }).unwrap().into();
 
-        let memory = device.allocate_memory(device_type, req.size).unwrap();
+        let memory = unsafe {
+            device.allocate_memory(device_type, req.size)
+        }.expect("Could not allocate memory for image");
 
-        device.bind_image_memory(&memory, 0, &mut image).unwrap();
-        let image_view = device.create_image_view(
-            &image,
-            ViewKind::D2,
-            Rgba8Srgb::SELF,
-            Swizzle::NO,
-            COLOR_RANGE.clone()
-        ).unwrap();
+        unsafe {
+            device.bind_image_memory(&memory, 0, &mut image)
+        }.expect("Could not bind image memroy");
 
-        let sampler = device.create_sampler(&SamplerDesc::new(Filter::Linear, WrapMode::Clamp))
-            .expect("Can't create sampler");
+        let image_view = unsafe {
+            device.create_image_view(
+                &image,
+                ViewKind::D2,
+                Rgba8Srgb::SELF,
+                Swizzle::NO,
+                COLOR_RANGE.clone()
+            )
+        }.expect("Could not create image view");
+
+        let sampler = unsafe {
+            device.create_sampler(&SamplerDesc::new(Filter::Linear, WrapMode::Clamp))
+        }.expect("Can't create sampler");
 
         desc.write_to_state(
             vec![
@@ -147,7 +160,7 @@ impl<B: Backend> ImageState<B> {
             .expect("Can't create fence");
         
         //copy buffer to texture
-        {
+        unsafe {
             let mut cmd_buffer = staging_pool.allocate_one(Level::Primary);
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
 

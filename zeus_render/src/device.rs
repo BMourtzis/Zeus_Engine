@@ -18,7 +18,6 @@ pub struct DeviceState<B: Backend> {
     pub queues: QueueGroup<B>
 }
 
-//TODO: Can I include feature requirements?
 impl<B: Backend> DeviceState<B> {
     pub fn new(adapter: Adapter<B>, surface: &B::Surface) -> Self {
         let family = adapter.queue_families

@@ -11,6 +11,8 @@ A graphics engine built with Rust and Vulkan API.
 - [image](https://docs.rs/image/0.22.4/image/)
 
 ## Helpful Links
+- [Multiple 3D objects question](https://www.reddit.com/r/vulkan/comments/b0sxw7/multiple_3d_objects_question/)
+- [Vulkan - when should I create a new pipeline?](https://stackoverflow.com/questions/53307042/vulkan-when-should-i-create-a-new-pipeline)
 - [Real time rendering helpful links](http://www.realtimerendering.com/)
 - [Vulkan Tutorial](https://vulkan-tutorial.com/Introduction)
 - [Doom 3 codebase](https://github.com/id-Software/Quake-III-Arena/tree/master/code/renderer)
@@ -24,3 +26,7 @@ A graphics engine built with Rust and Vulkan API.
 - [Conrod: GUI with winit in Rust](https://github.com/PistonDevelopers/conrod)
 - [Mockall: mocking framework](https://github.com/asomers/mockall)
 - [Rodio: Audio playback library](https://github.com/RustAudio/rodio)
+- [RON](https://github.com/ron-rs/ron) Use RON to load config from files.
+- [Profiler](https://github.com/glennw/thread_profiler)
+- [Deno_Core: js/ts intepreter](https://github.com/denoland/deno/tree/master/core)
+- [RustPython: Python intepreter](https://github.com/RustPython/RustPython)

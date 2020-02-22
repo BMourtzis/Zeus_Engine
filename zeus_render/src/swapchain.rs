@@ -29,48 +29,51 @@ pub struct SwapchainState<B: Backend>{
     pub swapchain: Option<B::Swapchain>,
     pub backbuffer: Option<Vec<B::Image>>,
     pub extent: Extent,
-    pub format: Format
+    pub format: Format,
+    pub size: u32
 }
 
 impl<B: Backend> SwapchainState<B> {
-    pub unsafe fn new (backend: &mut BackendState<B>, device: Rc<RefCell<DeviceState<B>>>) -> Self {
+    pub fn new (backend: &mut BackendState<B>, device: Rc<RefCell<DeviceState<B>>>) -> Self {
         let caps = backend.surface.capabilities(&device.borrow().physical_device);
         let formats = backend.surface.supported_formats(&device.borrow().physical_device);
-
-        // println!("caps: {:?}", caps);
-        // println!("formats: {:?}", formats);
 
         let format = formats.map_or(Format::Rgba8Srgb, |formats| {
             formats.iter()
                 .find(|format| format.base_format().1 == ChannelType::Srgb)
-                // .map(|format| *format)
                 .copied()
                 .unwrap_or(formats[0])
         });
 
-        // println!("Surface format: {:?}", format);
-        
-        //TODO: Should probably make my own config
-        let swap_config = SwapchainConfig::from_caps(&caps, format, DIMS)
-            .with_present_mode(if caps.present_modes.contains(PresentMode::MAILBOX) {
+        let swap_config = SwapchainConfig::new(
+            DIMS.width,
+            DIMS.height,
+            format,
+            3 //TODO: add a check
+        ).with_present_mode(if caps.present_modes.contains(PresentMode::MAILBOX) {
                 PresentMode::MAILBOX
             } else {
                 PresentMode::FIFO
-            });
+            }
+        );
+        
 
-        // println!("{:?}", swap_config);
+        let size = swap_config.image_count;
 
         let extent = swap_config.extent.to_extent();
-        let (swapchain, backbuffer) = device.borrow()
-            .device.create_swapchain(&mut backend.surface, swap_config, None)
-            .expect("Could not create swapchain");
+        let (swapchain, backbuffer) = unsafe {
+            device.borrow()
+                .device.create_swapchain(&mut backend.surface, swap_config, None)
+        }.expect("Could not create swapchain");
+
 
         SwapchainState {
             swapchain: Some(swapchain),
             backbuffer: Some(backbuffer),
             device,
             extent,
-            format
+            format,
+            size
         }
     }
 }

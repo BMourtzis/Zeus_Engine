@@ -10,7 +10,6 @@ pub struct AdapterState<B: Backend> {
     pub limits: Limits
 }
 
-//TODO: Check physical device properties, extension and features
 impl<B: Backend> AdapterState<B> {
     pub fn new(adapters: &mut Vec<Adapter<B>>) -> Self {
         // println!("Choose:");
