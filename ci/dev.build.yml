@@ -1,0 +1,16 @@
+pr:
+  autoCancel: true
+  branches:
+    include:
+      - master
+      - developer
+      - features/*
+
+# Stages
+stages:
+  - stage: simple_build
+    displayName: Simple Build
+    jobs:
+    - template: ./jobs/startup.yml
+      parameters:
+        job_pool: windows-2019

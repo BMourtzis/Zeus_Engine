@@ -1216,7 +1216,7 @@ mod tests {
         //Translation
         #[test]
         fn translate() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
             mat = mat.translate(3.0, 4.0, 5.0);
 
             assert_eq!(mat[0], 1.0);
@@ -1231,7 +1231,7 @@ mod tests {
 
         #[test]
         fn translate_by_vector() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
             mat = mat.translate_by_vector(Vector3::new(3.0, 3.0, 3.0));
 
             assert_eq!(mat[0], 1.0);
@@ -1247,7 +1247,7 @@ mod tests {
         //Scale
         #[test]
         fn scale() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.scale(2.0, 3.0, 5.0);
 
@@ -1273,7 +1273,7 @@ mod tests {
 
         #[test]
         fn scale_arbitraty_x() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.scale_axis(Vector3::X, 2.0);
 
@@ -1299,7 +1299,7 @@ mod tests {
 
         #[test]
         fn scale_arbitraty_y() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.scale_axis(Vector3::Y, 2.0);
 
@@ -1325,7 +1325,7 @@ mod tests {
 
         #[test]
         fn scale_arbitraty_z() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.scale_axis(Vector3::Z, 2.0);
 
@@ -1352,7 +1352,7 @@ mod tests {
         //Rotation
         #[test]
         fn rotate_x() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate_x(90.0);
 
@@ -1375,7 +1375,7 @@ mod tests {
 
         #[test]
         fn rotate_y() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate_y(90.0);
 
@@ -1398,7 +1398,7 @@ mod tests {
 
         #[test]
         fn rotate_z() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate_z(90.0);
 
@@ -1421,7 +1421,7 @@ mod tests {
 
         #[test]
         fn rotate_axis_x() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate(Vector3::X, 90.0);
 
@@ -1444,7 +1444,7 @@ mod tests {
 
         #[test]
         fn rotate_axis_y() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate(Vector3::Y, 90.0);
 
@@ -1467,7 +1467,7 @@ mod tests {
 
         #[test]
         fn rotate_axis_z() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
 
             mat = mat.rotate(Vector3::Z, 90.0);
 
@@ -1495,7 +1495,7 @@ mod tests {
 
         #[test]
         fn transformed_vector() {
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
             mat = mat.scale(2.0, 1.0, 1.0).rotate_y(90.0).translate(5.0, 3.0, 4.0);
 
             let vec = Vector4::new(4.0, 4.0, 4.0, 1.0);
@@ -1524,7 +1524,7 @@ mod tests {
 
         #[test]
         fn simple_trans_vector() {
-            let mat = Matrix4::identity()
+            let mat = Matrix4::new()
                 .scale(2.0, 2.0, 2.0)
                 .rotate_x(90.0);
 
@@ -1639,7 +1639,7 @@ mod tests {
         fn mul_with_vector() {
             let vec = Vector4::default();
 
-            let mut mat = Matrix4::identity();
+            let mut mat = Matrix4::new();
             mat = mat.translate(5.0, 7.0, 10.0);
 
             let trans_vec = mat * vec;

@@ -1,0 +1,13 @@
+trigger:
+  batch: true
+  branches:
+    include: ['master']
+
+# Stages
+stages:
+  - stage: simple_build
+    displayName: Simple Build
+    jobs:
+    - template: ./jobs/startup.yml
+      parameters:
+        job_pool: windows-2019

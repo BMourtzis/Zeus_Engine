@@ -25,6 +25,7 @@ impl<B: Backend> DeviceState<B> {
                 // println!("{:?}", family);
                 surface.supports_queue_family(family) && family.queue_type().supports_graphics()
             }).unwrap();
+        
         let mut gpu = unsafe {
             adapter.physical_device
                 .open(&[(family, &[1.0])], gfx_hal::Features::empty())

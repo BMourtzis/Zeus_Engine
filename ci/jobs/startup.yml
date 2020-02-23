@@ -1,0 +1,10 @@
+parameters:
+  job_pool: windows-2019
+
+jobs:
+- job: full_test
+  displayName: Test Zeus_Engine
+  pool:
+    vmImage: ${{ parameters['job_pool'] }}
+  steps: 
+  - template: ../steps/test.yml
