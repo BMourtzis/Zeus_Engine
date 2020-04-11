@@ -8,7 +8,6 @@ const QUAD_FRAG: &str = "data/quad.frag";
 const LOGO: &str = "data/logo.png";
 const ERROR: &str = "data/error.png";
 
-
 fn main() {
     let target_dir_path = env::var("OUT_DIR").unwrap();
 
@@ -22,9 +21,15 @@ fn main() {
     copy(&target_dir_path, QUAD_FRAG);
     copy(&target_dir_path, LOGO);
     copy(&target_dir_path, ERROR);
-
 }
 
-fn copy<S: AsRef<std::ffi::OsStr> + ?Sized, P: Copy + AsRef<Path>>(target_dir_path: &S, file_name: P) {
-    fs::copy(file_name, Path::new(&target_dir_path).join("../../..").join(file_name)).unwrap();
+fn copy<S: AsRef<std::ffi::OsStr> + ?Sized, P: Copy + AsRef<Path>>(
+    target_dir_path: &S,
+    file_name: P,
+) {
+    fs::copy(
+        file_name,
+        Path::new(&target_dir_path).join("../../..").join(file_name),
+    )
+    .unwrap();
 }

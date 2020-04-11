@@ -1,26 +1,17 @@
 //NOTE: For now we only use Vulkan until we can undestand the layout and design a architecture
 extern crate gfx_backend_vulkan as back;
 
-use gfx_hal::{
-    Backend,
-    Instance
-};
-use std::{
-    mem::ManuallyDrop,
-    ptr
-};
 use super::adapter::AdapterState;
-use winit::{
-    dpi::PhysicalPosition,
-    window::Window
-};
+use gfx_hal::{Backend, Instance};
+use std::{mem::ManuallyDrop, ptr};
+use winit::{dpi::PhysicalPosition, window::Window};
 
 pub struct BackendState<B: Backend> {
     instance: Option<B::Instance>,
     pub surface: ManuallyDrop<B::Surface>,
     pub adapter: AdapterState<B>,
     #[allow(dead_code)]
-    pub window: Window
+    pub window: Window,
 }
 
 impl<B: Backend> Drop for BackendState<B> {
@@ -34,20 +25,20 @@ impl<B: Backend> Drop for BackendState<B> {
     }
 }
 
-
 pub fn create_backend(
-    wb: winit::window::WindowBuilder, 
-    event_loop: &winit::event_loop::EventLoop<()>
+    wb: winit::window::WindowBuilder,
+    event_loop: &winit::event_loop::EventLoop<()>,
 ) -> BackendState<back::Backend> {
     let window = wb.build(event_loop).unwrap();
 
     window.set_outer_position(PhysicalPosition::new(1_300.0, 200.0));
 
-    let instance = back::Instance::create("Zeus Engine V0.0.1", 1)
-        .expect("Could not create instance");
-        
+    let instance =
+        back::Instance::create("Zeus Engine V0.0.1", 1).expect("Could not create instance");
+
     let surface = unsafe {
-        instance.create_surface(&window)
+        instance
+            .create_surface(&window)
             .expect("Could not create Surface")
     };
     let mut adapters = instance.enumerate_adapters();
@@ -56,6 +47,6 @@ pub fn create_backend(
         instance: Some(instance),
         adapter: AdapterState::new(&mut adapters),
         surface: ManuallyDrop::new(surface),
-        window
+        window,
     }
 }

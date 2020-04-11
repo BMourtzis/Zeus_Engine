@@ -1,16 +1,20 @@
-pr:
-  autoCancel: true
-  branches:
-    include:
-      - master
-      - developer
-      - features/*
+name: Dev Build
+
+# We will only trigger on PR check
+trigger: none
+pr: none
+
+pool:
+  vmImage: windows-2019
 
 # Stages
-stages:
-  - stage: simple_build
-    displayName: Simple Build
+stages: 
+  - stage: check
+    displayName: Check and Test Engine
     jobs:
-    - template: ./jobs/startup.yml
-      parameters:
-        job_pool: windows-2019
+    - template: ./stages/check.yml
+  # - stage: build
+  #   displayName: Build Engine
+  #   jobs:
+  #   - template: ./jobs/build.yml
+  #     dependsOn: [test, check]

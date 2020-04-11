@@ -1,27 +1,18 @@
-use crate::math::vector::{
-    Vector2,
-    Vector3,
-    Vector4
-};
+use crate::math::vector::{Vector2, Vector3, Vector4};
 
-use std::ops::{
-    Index, IndexMut,
-    Mul, MulAssign
-};
 use std::fmt;
 use std::fmt::Display;
+use std::ops::{Index, IndexMut, Mul, MulAssign};
 
 // region Matrix2
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix2 {
-    entries: [f32; 4]
+    entries: [f32; 4],
 }
 
 impl Matrix2 {
     pub fn new() -> Matrix2 {
-        Matrix2 {
-            entries: [0.0; 4]
-        }
+        Matrix2 { entries: [0.0; 4] }
     }
 
     pub fn identity() -> Matrix2 {
@@ -56,21 +47,21 @@ impl Matrix2 {
     }
 
     pub fn get_diagonal_vector(&self) -> Vector2 {
-        Vector2::new(
-            self[0],
-            self[4]
-        )
+        Vector2::new(self[0], self[4])
     }
 }
 
 impl Mul<f32> for Matrix2 {
     type Output = Matrix2;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut mat = Matrix2::new();
 
         for i in 0..4 {
-            mat[i] = self[i]*rhs;
+            mat[i] = self[i] * rhs;
         }
 
         mat
@@ -78,9 +69,12 @@ impl Mul<f32> for Matrix2 {
 }
 
 impl MulAssign<f32> for Matrix2 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         for i in 0..4 {
-            self[i] = self[i]*rhs;
+            self[i] = self[i] * rhs;
         }
     }
 }
@@ -88,7 +82,10 @@ impl MulAssign<f32> for Matrix2 {
 impl Mul<Matrix2> for f32 {
     type Output = Matrix2;
 
-    fn mul(self, rhs: Matrix2) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Matrix2,
+    ) -> Self::Output {
         rhs * self
     }
 }
@@ -96,7 +93,11 @@ impl Mul<Matrix2> for f32 {
 impl Mul for Matrix2 {
     type Output = Matrix2;
 
-    fn mul(self, rhs: Matrix2) -> Self::Output {
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn mul(
+        self,
+        rhs: Matrix2,
+    ) -> Self::Output {
         let mut mat = Matrix2::new();
 
         for i in 0..4 {
@@ -113,7 +114,10 @@ impl Mul for Matrix2 {
 impl Index<usize> for Matrix2 {
     type Output = f32;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(
+        &self,
+        index: usize,
+    ) -> &Self::Output {
         if index > 3 {
             error!("Trying to reach out of bounds index");
             return &std::f32::NAN;
@@ -124,7 +128,10 @@ impl Index<usize> for Matrix2 {
 }
 
 impl IndexMut<usize> for Matrix2 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(
+        &mut self,
+        index: usize,
+    ) -> &mut Self::Output {
         &mut self.entries[index]
     }
 }
@@ -141,14 +148,12 @@ impl Default for Matrix2 {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix3 {
-    entries: [f32; 9]
+    entries: [f32; 9],
 }
 
 impl Matrix3 {
     pub fn new() -> Matrix3 {
-        Matrix3 {
-            entries: [0.0; 9]
-        }
+        Matrix3 { entries: [0.0; 9] }
     }
 
     pub fn identity() -> Matrix3 {
@@ -161,7 +166,10 @@ impl Matrix3 {
         result
     }
 
-    pub fn from_2d_vectors(a: &Vector2, b: &Vector2) -> Matrix3 {
+    pub fn from_2d_vectors(
+        a: Vector2,
+        b: Vector2,
+    ) -> Matrix3 {
         let mut result = Matrix3::new();
 
         result[0] = a.x;
@@ -189,7 +197,7 @@ impl Matrix3 {
         result
     }
 
-    pub fn transpose(&self) -> Matrix3{
+    pub fn transpose(&self) -> Matrix3 {
         let mut result = Matrix3::new();
 
         for i in 0..3 {
@@ -209,11 +217,14 @@ impl Matrix3 {
 impl Mul<f32> for Matrix3 {
     type Output = Matrix3;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut mat = Matrix3::new();
 
         for i in 0..9 {
-            mat[i] = self[i]*rhs;
+            mat[i] = self[i] * rhs;
         }
 
         mat
@@ -221,9 +232,12 @@ impl Mul<f32> for Matrix3 {
 }
 
 impl MulAssign<f32> for Matrix3 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         for i in 0..9 {
-            self[i] = self[i]*rhs;
+            self[i] = self[i] * rhs;
         }
     }
 }
@@ -231,7 +245,10 @@ impl MulAssign<f32> for Matrix3 {
 impl Mul<Matrix3> for f32 {
     type Output = Matrix3;
 
-    fn mul(self, rhs: Matrix3) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Matrix3,
+    ) -> Self::Output {
         rhs * self
     }
 }
@@ -239,14 +256,20 @@ impl Mul<Matrix3> for f32 {
 impl Mul for Matrix3 {
     type Output = Matrix3;
 
-    fn mul(self, rhs: Matrix3) -> Self::Output {
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn mul(
+        self,
+        rhs: Matrix3,
+    ) -> Self::Output {
         let mut mat = Matrix3::new();
 
         for i in 0..9 {
             let row = (i / 3) * 3;
             let col = i % 3;
 
-            mat[i] = (self[row] * rhs[col]) + (self[row + 1] * rhs[col + 3]) + (self[row + 2] * rhs[col + 6]);
+            mat[i] = (self[row] * rhs[col])
+                + (self[row + 1] * rhs[col + 3])
+                + (self[row + 2] * rhs[col + 6]);
         }
 
         mat
@@ -256,11 +279,14 @@ impl Mul for Matrix3 {
 impl Mul<Vector3> for Matrix3 {
     type Output = Vector3;
 
-    fn mul(self, rhs: Vector3) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Vector3,
+    ) -> Self::Output {
         Vector3::new(
-            self[0]*rhs.x + self[1]*rhs.y + self[2]*rhs.z,
-            self[4]*rhs.x + self[5]*rhs.y + self[6]*rhs.z,
-            self[8]*rhs.x + self[9]*rhs.y + self[10]*rhs.z,
+            self[0] * rhs.x + self[1] * rhs.y + self[2] * rhs.z,
+            self[4] * rhs.x + self[5] * rhs.y + self[6] * rhs.z,
+            self[8] * rhs.x + self[9] * rhs.y + self[10] * rhs.z,
         )
     }
 }
@@ -268,7 +294,10 @@ impl Mul<Vector3> for Matrix3 {
 impl Index<usize> for Matrix3 {
     type Output = f32;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(
+        &self,
+        index: usize,
+    ) -> &Self::Output {
         if index > 8 {
             error!("Trying to reach out of bounds index");
             return &std::f32::NAN;
@@ -279,14 +308,16 @@ impl Index<usize> for Matrix3 {
 }
 
 impl IndexMut<usize> for Matrix3 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(
+        &mut self,
+        index: usize,
+    ) -> &mut Self::Output {
         &mut self.entries[index]
     }
 }
 
 impl Default for Matrix3 {
-    fn default() -> Self
-    {
+    fn default() -> Self {
         Matrix3::new()
     }
 }
@@ -297,12 +328,12 @@ impl Default for Matrix3 {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix4 {
-    entries: [f32; 16]
+    entries: [f32; 16],
 }
 
 impl Matrix4 {
     pub fn zero() -> Matrix4 {
-        Matrix4 { entries: [0.0; 16]}
+        Matrix4 { entries: [0.0; 16] }
     }
 
     pub fn new() -> Matrix4 {
@@ -334,7 +365,11 @@ impl Matrix4 {
         new_mat
     }
 
-    pub fn from_3d_vectors(a: &Vector3, b: &Vector3, c: &Vector3) -> Matrix4 {
+    pub fn from_3d_vectors(
+        a: &Vector3,
+        b: &Vector3,
+        c: &Vector3,
+    ) -> Matrix4 {
         let mut result = Matrix4::zero();
 
         result[0] = a.x;
@@ -370,7 +405,12 @@ impl Matrix4 {
         mat
     }
 
-    pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Matrix4 {
+    pub fn perspective(
+        fov: f32,
+        aspect: f32,
+        near: f32,
+        far: f32,
+    ) -> Matrix4 {
         let mut aspect = aspect;
         if aspect <= 0.0 {
             aspect = 1.0;
@@ -378,19 +418,35 @@ impl Matrix4 {
 
         //TODO: make sure far > near
 
-        let f = 1.0/(fov/2.0).tan();
+        let f = 1.0 / (fov / 2.0).tan();
 
         Matrix4 {
             entries: [
-                f/aspect, 0.0, 0.0, 0.0,
-                0.0, f, 0.0, 0.0,
-                0.0, 0.0, -(far + near)/(far - near), -(2.0 * far * near)/(far-near),
-                0.0, 0.0, -1.0, 0.0
-            ]
+                f / aspect,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                f,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                -(far + near) / (far - near),
+                -(2.0 * far * near) / (far - near),
+                0.0,
+                0.0,
+                -1.0,
+                0.0,
+            ],
         }
     }
 
-    pub fn look_at(pos: Vector3, target: Vector3, up: Vector3) -> Matrix4 {
+    pub fn look_at(
+        pos: Vector3,
+        target: Vector3,
+        up: Vector3,
+    ) -> Matrix4 {
         let f = (pos - target).normalize();
 
         let mut r = f.cross(&up).normalize();
@@ -401,20 +457,22 @@ impl Matrix4 {
 
         Matrix4 {
             entries: [
-                r.x, r.y, r.z, 0.0,
-                u.x, u.y, u.z, 0.0,
-                f.x, f.y, f.z, 0.0,
-                0.0, 0.0, 0.0, 1.0
-            ]
+                r.x, r.y, r.z, 0.0, u.x, u.y, u.z, 0.0, f.x, f.y, f.z, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
         }
     }
 
     //Methods
 
     /// Translates the current matrix
-    pub fn translate(self, x: f32, y: f32, z: f32) -> Matrix4 {
+    pub fn translate(
+        self,
+        x: f32,
+        y: f32,
+        z: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
-        
+
         mat[3] = x;
         mat[7] = y;
         mat[11] = z;
@@ -422,9 +480,12 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn translate_by_vector(self, vec: Vector3) -> Matrix4 {
+    pub fn translate_by_vector(
+        self,
+        vec: Vector3,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
-        
+
         mat[3] = vec.x;
         mat[7] = vec.y;
         mat[11] = vec.z;
@@ -433,7 +494,12 @@ impl Matrix4 {
     }
 
     /// Scale the matrix along the Cardinal Axis
-    pub fn scale(self, x: f32, y: f32, z: f32) -> Matrix4 {
+    pub fn scale(
+        self,
+        x: f32,
+        y: f32,
+        z: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
         mat[0] = x;
@@ -443,7 +509,10 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn scale_with_vector(self, scale: Vector3) -> Matrix4 {
+    pub fn scale_with_vector(
+        self,
+        scale: Vector3,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
         mat[0] = scale.x;
@@ -453,7 +522,11 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn scale_axis(self, axis: Vector3, scale: f32) -> Matrix4 {
+    pub fn scale_axis(
+        self,
+        axis: Vector3,
+        scale: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
         let axis = axis.normalize();
 
@@ -472,7 +545,10 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn rotate_x(self, theta: f32) -> Matrix4 {
+    pub fn rotate_x(
+        self,
+        theta: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
         let theta = theta.to_radians();
 
@@ -485,7 +561,10 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn rotate_y(self, theta: f32) -> Matrix4 {
+    pub fn rotate_y(
+        self,
+        theta: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
         let theta = theta.to_radians();
 
@@ -498,7 +577,10 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn rotate_z(self, theta: f32) -> Matrix4 {
+    pub fn rotate_z(
+        self,
+        theta: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
         let theta = theta.to_radians();
 
@@ -511,7 +593,11 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn rotate(self, axis: Vector3, theta: f32) -> Matrix4 {
+    pub fn rotate(
+        self,
+        axis: Vector3,
+        theta: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
         let theta = theta.to_radians();
@@ -533,7 +619,10 @@ impl Matrix4 {
     }
 
     //TODO: add tests
-    pub fn orthographic_projection(self, axis: Vector3) -> Matrix4 {
+    pub fn orthographic_projection(
+        self,
+        axis: Vector3,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
         mat[0] = 1.0 - axis.x.powi(2);
@@ -542,7 +631,7 @@ impl Matrix4 {
 
         mat[0] = -axis.x * axis.y;
         mat[0] = 1.0 - axis.y.powi(2);
-        mat[0] = - axis.y * axis.z;
+        mat[0] = -axis.y * axis.z;
 
         mat[0] = -axis.x * axis.z;
         mat[0] = -axis.y * axis.z;
@@ -575,15 +664,21 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn perspective_projection(self, dist: f32) -> Matrix4 {
+    pub fn perspective_projection(
+        self,
+        dist: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
-        mat[14] = 1.0/dist;
+        mat[14] = 1.0 / dist;
 
         mat * self
     }
 
-    pub fn reflection(self, axis: Vector4) -> Matrix4 {
+    pub fn reflection(
+        self,
+        axis: Vector4,
+    ) -> Matrix4 {
         let mut mat = Matrix4::new();
 
         let axis = axis.normalize();
@@ -603,7 +698,11 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_xy(self, s: f32, t: f32) -> Matrix4 {
+    pub fn shear_xy(
+        self,
+        s: f32,
+        t: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::zero();
 
         mat[8] = s;
@@ -612,7 +711,11 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_xz(self, s: f32, t: f32) -> Matrix4 {
+    pub fn shear_xz(
+        self,
+        s: f32,
+        t: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::zero();
 
         mat[4] = s;
@@ -621,7 +724,11 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_yz(self, s: f32, t: f32) -> Matrix4 {
+    pub fn shear_yz(
+        self,
+        s: f32,
+        t: f32,
+    ) -> Matrix4 {
         let mut mat = Matrix4::zero();
 
         mat[1] = s;
@@ -640,12 +747,12 @@ impl Matrix4 {
         result
     }
 
-    pub fn transpose(&self) -> Matrix4{
+    pub fn transpose(&self) -> Matrix4 {
         let mut result = Matrix4::zero();
 
         for i in 0..4 {
             for j in 0..4 {
-                result[i*4 + j] = self[j*4 +i];
+                result[i * 4 + j] = self[j * 4 + i];
             }
         }
 
@@ -657,7 +764,10 @@ impl Matrix4 {
         Vector4::new(self[0], self[5], self[10], self[15])
     }
 
-    pub fn get(&self, idx: usize) -> Option<f32> {
+    pub fn get(
+        &self,
+        idx: usize,
+    ) -> Option<f32> {
         if idx > 15 {
             None
         } else {
@@ -673,11 +783,14 @@ impl Matrix4 {
 impl Mul<f32> for Matrix4 {
     type Output = Matrix4;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut mat = Matrix4::zero();
 
         for i in 0..16 {
-            mat[i] = self[i]*rhs;
+            mat[i] = self[i] * rhs;
         }
 
         mat
@@ -685,9 +798,12 @@ impl Mul<f32> for Matrix4 {
 }
 
 impl MulAssign<f32> for Matrix4 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         for i in 0..16 {
-            self[i] = self[i]*rhs;
+            self[i] = self[i] * rhs;
         }
     }
 }
@@ -695,7 +811,10 @@ impl MulAssign<f32> for Matrix4 {
 impl Mul<Matrix4> for f32 {
     type Output = Matrix4;
 
-    fn mul(self, rhs: Matrix4) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Matrix4,
+    ) -> Self::Output {
         rhs * self
     }
 }
@@ -703,14 +822,21 @@ impl Mul<Matrix4> for f32 {
 impl Mul for Matrix4 {
     type Output = Matrix4;
 
-    fn mul(self, rhs: Matrix4) -> Self::Output {
+    #[allow(clippy::suspicious_arithmetic_impl)]
+    fn mul(
+        self,
+        rhs: Matrix4,
+    ) -> Self::Output {
         let mut mat = Matrix4::zero();
 
         for i in 0..16 {
             let row = (i / 4) * 4;
             let col = i % 4;
 
-            mat[i] = (self[row] * rhs[col]) + (self[row + 1] * rhs[col + 4]) + (self[row + 2] * rhs[col + 8]) + (self[row + 3] * rhs[col + 12]);
+            mat[i] = (self[row] * rhs[col])
+                + (self[row + 1] * rhs[col + 4])
+                + (self[row + 2] * rhs[col + 8])
+                + (self[row + 3] * rhs[col + 12]);
         }
 
         mat
@@ -720,12 +846,15 @@ impl Mul for Matrix4 {
 impl Mul<Vector4> for Matrix4 {
     type Output = Vector4;
 
-    fn mul(self, rhs: Vector4) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Vector4,
+    ) -> Self::Output {
         Vector4::new(
-            self[0]*rhs.x + self[1]*rhs.y + self[2]*rhs.z + self[3]*rhs.w,
-            self[4]*rhs.x + self[5]*rhs.y + self[6]*rhs.z + self[7]*rhs.w,
-            self[8]*rhs.x + self[9]*rhs.y + self[10]*rhs.z + self[11]*rhs.w,
-            self[12]*rhs.x + self[13]*rhs.y + self[14]*rhs.z + self[15]*rhs.w,
+            self[0] * rhs.x + self[1] * rhs.y + self[2] * rhs.z + self[3] * rhs.w,
+            self[4] * rhs.x + self[5] * rhs.y + self[6] * rhs.z + self[7] * rhs.w,
+            self[8] * rhs.x + self[9] * rhs.y + self[10] * rhs.z + self[11] * rhs.w,
+            self[12] * rhs.x + self[13] * rhs.y + self[14] * rhs.z + self[15] * rhs.w,
         )
     }
 }
@@ -733,18 +862,24 @@ impl Mul<Vector4> for Matrix4 {
 impl Index<usize> for Matrix4 {
     type Output = f32;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(
+        &self,
+        index: usize,
+    ) -> &Self::Output {
         if index > 15 {
             error!("Trying to reach out of bounds index");
             return &std::f32::NAN;
         }
-        
+
         &self.entries[index]
     }
 }
 
 impl IndexMut<usize> for Matrix4 {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(
+        &mut self,
+        index: usize,
+    ) -> &mut Self::Output {
         &mut self.entries[index]
     }
 }
@@ -756,12 +891,30 @@ impl Default for Matrix4 {
 }
 
 impl Display for Matrix4 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Matrix4: \n {} {} {} {} \n {} {} {} {} \n {} {} {} {} \n {} {} {} {}", 
-        self[0], self[1], self[2], self[3],
-        self[4], self[5], self[6], self[7],
-        self[8], self[9], self[10], self[11], 
-        self[12], self[13], self[14], self[15])
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        write!(
+            f,
+            "Matrix4: \n {} {} {} {} \n {} {} {} {} \n {} {} {} {} \n {} {} {} {}",
+            self[0],
+            self[1],
+            self[2],
+            self[3],
+            self[4],
+            self[5],
+            self[6],
+            self[7],
+            self[8],
+            self[9],
+            self[10],
+            self[11],
+            self[12],
+            self[13],
+            self[14],
+            self[15]
+        )
     }
 }
 
@@ -808,7 +961,7 @@ mod tests {
             }
 
             let mat = orig.transpose();
-            
+
             assert_eq!(mat[0], 1.0);
             assert_eq!(mat[1], 3.0);
             assert_eq!(mat[2], 2.0);
@@ -818,10 +971,6 @@ mod tests {
             assert_eq!(orig[1], 2.0);
             assert_eq!(orig[2], 3.0);
             assert_eq!(orig[3], 4.0);
-
-            
-
-
         }
 
         #[test]
@@ -842,7 +991,6 @@ mod tests {
                 assert_eq!(mat[i], 1.0 + i as f32);
             }
         }
-
 
         //Operattors
         #[test]
@@ -946,9 +1094,9 @@ mod tests {
             for i in 0..3 {
                 for j in 0..3 {
                     if i == j {
-                        assert_eq!(mat[i +3 * j], 1.0);
+                        assert_eq!(mat[i + 3 * j], 1.0);
                     } else {
-                        assert_eq!(mat[i +3 * j], 0.0);
+                        assert_eq!(mat[i + 3 * j], 0.0);
                     }
                 }
             }
@@ -956,8 +1104,8 @@ mod tests {
 
         #[test]
         fn from_3d_vectors() {
-            let vec1 = &Vector2::new(1.0, 2.0,);
-            let vec2 = &Vector2::new(3.0, 4.0);
+            let vec1 = Vector2::new(1.0, 2.0);
+            let vec2 = Vector2::new(3.0, 4.0);
 
             let mat = Matrix3::from_2d_vectors(vec1, vec2);
 
@@ -977,11 +1125,11 @@ mod tests {
         //Methods
         #[test]
         fn transpose() {
-            let vec1 = &Vector2::new(1.0, 2.0);
-            let vec2 = &Vector2::new(3.0, 4.0);
+            let vec1 = Vector2::new(1.0, 2.0);
+            let vec2 = Vector2::new(3.0, 4.0);
 
             let mat = Matrix3::from_2d_vectors(vec1, vec2).transpose();
-            
+
             assert_eq!(mat[0], 1.0);
             assert_eq!(mat[1], 3.0);
             assert_eq!(mat[2], 0.0);
@@ -1013,7 +1161,6 @@ mod tests {
                 assert_eq!(mat[i], (i + 1) as f32);
             }
         }
-
 
         //Operattors
         #[test]
@@ -1106,10 +1253,7 @@ mod tests {
 
     mod matrix4 {
         use crate::math::matrix::Matrix4;
-        use crate::math::vector::{
-            Vector3,
-            Vector4
-        };
+        use crate::math::vector::{Vector3, Vector4};
 
         #[test]
         fn new() {
@@ -1127,9 +1271,9 @@ mod tests {
             for i in 0..4 {
                 for j in 0..4 {
                     if i == j {
-                        assert_eq!(mat[i +4*j], 1.0);
+                        assert_eq!(mat[i + 4 * j], 1.0);
                     } else {
-                        assert_eq!(mat[i +4*j], 0.0);
+                        assert_eq!(mat[i + 4 * j], 0.0);
                     }
                 }
             }
@@ -1172,7 +1316,7 @@ mod tests {
             let vec3 = &Vector3::new(7.0, 8.0, 9.0);
 
             let mat = Matrix4::from_3d_vectors(vec1, vec2, vec3).transpose();
-            
+
             assert_eq!(mat[0], 1.0);
             assert_eq!(mat[1], 4.0);
             assert_eq!(mat[2], 7.0);
@@ -1223,7 +1367,7 @@ mod tests {
             assert_eq!(mat[5], 1.0);
             assert_eq!(mat[10], 1.0);
             assert_eq!(mat[15], 1.0);
-            
+
             assert_eq!(mat[3], 3.0);
             assert_eq!(mat[7], 4.0);
             assert_eq!(mat[11], 5.0);
@@ -1238,7 +1382,7 @@ mod tests {
             assert_eq!(mat[5], 1.0);
             assert_eq!(mat[10], 1.0);
             assert_eq!(mat[15], 1.0);
-            
+
             assert_eq!(mat[3], 3.0);
             assert_eq!(mat[7], 3.0);
             assert_eq!(mat[11], 3.0);
@@ -1489,14 +1633,15 @@ mod tests {
         }
 
         #[test]
-        fn rotate_z_increment() {
-            
-        }
+        fn rotate_z_increment() {}
 
         #[test]
         fn transformed_vector() {
             let mut mat = Matrix4::new();
-            mat = mat.scale(2.0, 1.0, 1.0).rotate_y(90.0).translate(5.0, 3.0, 4.0);
+            mat = mat
+                .scale(2.0, 1.0, 1.0)
+                .rotate_y(90.0)
+                .translate(5.0, 3.0, 4.0);
 
             let vec = Vector4::new(4.0, 4.0, 4.0, 1.0);
 
@@ -1519,14 +1664,11 @@ mod tests {
             assert_eq!(tras_vec.y, 7.0);
             assert_eq!(tras_vec.z, 12.0);
             assert_eq!(tras_vec.w, 1.0);
-
         }
 
         #[test]
         fn simple_trans_vector() {
-            let mat = Matrix4::new()
-                .scale(2.0, 2.0, 2.0)
-                .rotate_x(90.0);
+            let mat = Matrix4::new().scale(2.0, 2.0, 2.0).rotate_x(90.0);
 
             let vec = Vector4::new(4.0, 6.0, 3.0, 1.0);
 
@@ -1547,7 +1689,7 @@ mod tests {
             assert_eq!(trans_vec.z, -12.0);
             assert_eq!(trans_vec.w, 1.0);
         }
-        
+
         //Operators
         #[test]
         fn mul_scalar() {

@@ -1,0 +1,29 @@
+edition = "2018"
+# Check
+fn_args_layout = "Vertical"
+hard_tabs = false
+max_width = 100
+merge_derives = true
+remove_nested_parens = true
+reorder_imports = true
+reorder_modules = true
+tab_spaces = 4
+use_field_init_shorthand = true
+use_small_heuristics = "Default"
+
+# Unstable
+# binop_separator = "Back"
+# blank_lines_lower_bound = 0
+# blank_lines_upper_bound = 1
+# brace_style = "SameLineWhere"
+# combine_control_expr = true
+# reorder_impl_items = true
+# report_todo = "Always"
+# space_after_colon = true
+# space_before_colon = false
+# spaces_around_ranges = false
+# struct_lit_single_line = true
+# trailing_comma = "Vertical"
+# trailing_semicolon = true
+# unstable_features = false
+# wrap_comment = true

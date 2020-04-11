@@ -1,36 +1,21 @@
+use super::{adapter::AdapterState, device::DeviceState, model::Dimensions};
 use gfx_hal::{
     adapter::MemoryType,
-    Backend,
     buffer::Usage,
+    command::{BufferCopy, CommandBuffer, CommandBufferFlags, Level},
     device::Device,
     memory::Properties,
-    command::{
-        Level,
-        CommandBufferFlags,
-        BufferCopy,
-        CommandBuffer
-    },
     pool::CommandPool,
-    queue::CommandQueue
+    queue::CommandQueue,
+    Backend,
 };
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    mem::size_of,
-    ptr,
-    iter
-};
-use super::{
-    adapter::AdapterState,
-    device::DeviceState,
-    model::Dimensions
-};
+use std::{cell::RefCell, iter, mem::size_of, ptr, rc::Rc};
 
 pub struct BufferState<B: Backend> {
     memory: Option<B::Memory>,
     pub buffer: Option<B::Buffer>,
     device: Rc<RefCell<DeviceState<B>>>,
-    size: u64
+    size: u64,
 }
 
 impl<B: Backend> BufferState<B> {
@@ -42,15 +27,20 @@ impl<B: Backend> BufferState<B> {
         data_source: &[T],
         usage: Usage,
         memory_types: &[MemoryType],
-        memory_properties: Properties
+        memory_properties: Properties,
     ) -> Self
-    where T: Copy {
-        let mut buffer_state = BufferState::new_unmapped::<T>(Rc::clone(&device_ptr), data_source.len(), usage, memory_types, memory_properties);
-
-        buffer_state.update_data(
-            0,
-            data_source
+    where
+        T: Copy,
+    {
+        let mut buffer_state = BufferState::new_unmapped::<T>(
+            Rc::clone(&device_ptr),
+            data_source.len(),
+            usage,
+            memory_types,
+            memory_properties,
         );
+
+        buffer_state.update_data(0, data_source);
 
         buffer_state
     }
@@ -61,7 +51,7 @@ impl<B: Backend> BufferState<B> {
         data_length: usize,
         usage: Usage,
         memory_types: &[MemoryType],
-        memory_properties: Properties
+        memory_properties: Properties,
     ) -> Self {
         let memory: B::Memory;
         let mut buffer: B::Buffer;
@@ -77,12 +67,16 @@ impl<B: Backend> BufferState<B> {
             buffer = device.create_buffer(upload_size as u64, usage).unwrap();
             let mem_req = device.get_buffer_requirements(&buffer);
 
-            let upload_type = memory_types.iter()
-                .enumerate().position(|(id, mem_type)| {
-                    mem_req.type_mask & (1 << id) != 0 
+            let upload_type = memory_types
+                .iter()
+                .enumerate()
+                .position(|(id, mem_type)| {
+                    mem_req.type_mask & (1 << id) != 0
                         && mem_type.properties.contains(memory_properties)
-                }).unwrap().into();
-            
+                })
+                .unwrap()
+                .into();
+
             memory = device.allocate_memory(upload_type, mem_req.size).unwrap();
             device.bind_buffer_memory(&memory, 0, &mut buffer).unwrap();
             size = mem_req.size;
@@ -92,7 +86,7 @@ impl<B: Backend> BufferState<B> {
             memory: Some(memory),
             buffer: Some(buffer),
             device: device_ptr,
-            size
+            size,
         }
     }
 
@@ -102,7 +96,7 @@ impl<B: Backend> BufferState<B> {
         device: &B::Device,
         img: &image::ImageBuffer<image::Rgba<u8>, Vec<u8>>,
         adapter: &AdapterState<B>,
-        usage: Usage
+        usage: Usage,
     ) -> (Self, Dimensions<u32>, u32, usize) {
         let (width, height) = img.dimensions();
 
@@ -120,26 +114,32 @@ impl<B: Backend> BufferState<B> {
             buffer = device.create_buffer(upload_size, usage).unwrap();
             let mem_reqs = device.get_buffer_requirements(&buffer);
 
-            let upload_type = adapter.memory_types
-                .iter().enumerate()
+            let upload_type = adapter
+                .memory_types
+                .iter()
+                .enumerate()
                 .position(|(id, mem_type)| {
                     mem_reqs.type_mask & (1 << id) != 0
-                        && mem_type.properties.contains(Properties::CPU_VISIBLE | Properties::COHERENT)
-                }).unwrap().into();
+                        && mem_type
+                            .properties
+                            .contains(Properties::CPU_VISIBLE | Properties::COHERENT)
+                })
+                .unwrap()
+                .into();
 
             memory = device.allocate_memory(upload_type, mem_reqs.size).unwrap();
             device.bind_buffer_memory(&memory, 0, &mut buffer).unwrap();
             size = mem_reqs.size;
 
             //copy image data into staging buffer
-            let mapping = device.map_memory(&memory, 0 .. size).unwrap();
-            for y in 0 .. height as usize {
-                let data_source_slice = &(**img)
-                    [y * (width as usize) * stride .. (y + 1) * (width as usize) * stride];
+            let mapping = device.map_memory(&memory, 0..size).unwrap();
+            for y in 0..height as usize {
+                let data_source_slice =
+                    &(**img)[y * (width as usize) * stride..(y + 1) * (width as usize) * stride];
                 ptr::copy_nonoverlapping(
                     data_source_slice.as_ptr(),
                     mapping.offset(y as isize * row_pitch as isize),
-                    data_source_slice.len()
+                    data_source_slice.len(),
                 );
             }
             device.unmap_memory(&memory);
@@ -150,11 +150,11 @@ impl<B: Backend> BufferState<B> {
                 memory: Some(memory),
                 buffer: Some(buffer),
                 device: device_ptr,
-                size
+                size,
             },
             Dimensions { width, height },
             row_pitch,
-            stride
+            stride,
         )
     }
 
@@ -166,15 +166,17 @@ impl<B: Backend> BufferState<B> {
         device_ptr: Rc<RefCell<DeviceState<B>>>,
         data_source: &[T],
         memory_types: &[MemoryType],
-        staging_pool: &mut B::CommandPool
+        staging_pool: &mut B::CommandPool,
     ) -> Self
-    where T: Copy {
+    where
+        T: Copy,
+    {
         let staging_buffer = BufferState::new(
             Rc::clone(&device_ptr),
             data_source,
             Usage::TRANSFER_SRC,
             memory_types,
-            Properties::CPU_VISIBLE | Properties::COHERENT
+            Properties::CPU_VISIBLE | Properties::COHERENT,
         );
 
         let vertex_buffer = BufferState::new_unmapped::<T>(
@@ -182,33 +184,41 @@ impl<B: Backend> BufferState<B> {
             data_source.len(),
             Usage::TRANSFER_DST | Usage::VERTEX,
             memory_types,
-            Properties::DEVICE_LOCAL
+            Properties::DEVICE_LOCAL,
         );
 
         let upload_size = (data_source.len() * size_of::<T>()) as u64;
         let mut device = device_ptr.borrow_mut();
 
         unsafe {
-            Self::copy_buffer(&mut device, &staging_buffer, &vertex_buffer, upload_size, staging_pool);
+            Self::copy_buffer(
+                &mut device,
+                &staging_buffer,
+                &vertex_buffer,
+                upload_size,
+                staging_pool,
+            );
         }
 
         vertex_buffer
     }
 
     //Creates a new buffer for index data and copies the data in, it uses a staging buffer
-    pub fn new_index_buffer<T> (
+    pub fn new_index_buffer<T>(
         device_ptr: Rc<RefCell<DeviceState<B>>>,
         data_source: &[T],
         memory_types: &[MemoryType],
-        staging_pool: &mut B::CommandPool
+        staging_pool: &mut B::CommandPool,
     ) -> Self
-    where T: Copy {
+    where
+        T: Copy,
+    {
         let staging_buffer = BufferState::new(
             Rc::clone(&device_ptr),
             data_source,
             Usage::TRANSFER_SRC,
             memory_types,
-            Properties::CPU_VISIBLE | Properties::COHERENT
+            Properties::CPU_VISIBLE | Properties::COHERENT,
         );
 
         let index_buffer = BufferState::new_unmapped::<T>(
@@ -216,14 +226,20 @@ impl<B: Backend> BufferState<B> {
             data_source.len(),
             Usage::TRANSFER_DST | Usage::INDEX,
             memory_types,
-            Properties::DEVICE_LOCAL
+            Properties::DEVICE_LOCAL,
         );
 
         let upload_size = (data_source.len() * size_of::<T>()) as u64;
         let mut device = device_ptr.borrow_mut();
 
         unsafe {
-            Self::copy_buffer(&mut device, &staging_buffer, &index_buffer, upload_size, staging_pool);
+            Self::copy_buffer(
+                &mut device,
+                &staging_buffer,
+                &index_buffer,
+                upload_size,
+                staging_pool,
+            );
         }
 
         index_buffer
@@ -233,14 +249,14 @@ impl<B: Backend> BufferState<B> {
     pub fn new_uniform_buffer<T>(
         device_ptr: Rc<RefCell<DeviceState<B>>>,
         data_length: usize,
-        memory_types: &[MemoryType]
+        memory_types: &[MemoryType],
     ) -> Self {
         BufferState::new_unmapped::<T>(
             Rc::clone(&device_ptr),
             data_length,
             Usage::UNIFORM,
             memory_types,
-            Properties::CPU_VISIBLE | Properties::COHERENT
+            Properties::CPU_VISIBLE | Properties::COHERENT,
         )
     }
 
@@ -250,19 +266,23 @@ impl<B: Backend> BufferState<B> {
         self.buffer.as_ref().unwrap()
     }
 
-    pub fn update_data<T>(&mut self, offset: u64, data_source: &[T])
-    where T: Copy
+    pub fn update_data<T>(
+        &mut self,
+        offset: u64,
+        data_source: &[T],
+    ) where
+        T: Copy,
     {
         let device = &self.device.borrow().device;
 
         let stride = size_of::<T>();
         let upload_size = data_source.len() * stride;
 
-        assert!(offset + upload_size  as u64 <= self.size);
+        assert!(offset + upload_size as u64 <= self.size);
         let memory = self.memory.as_ref().unwrap();
 
         unsafe {
-            let mapping = device.map_memory(memory, offset .. self.size).unwrap();
+            let mapping = device.map_memory(memory, offset..self.size).unwrap();
             ptr::copy_nonoverlapping(data_source.as_ptr() as *const u8, mapping, upload_size);
             device.unmap_memory(memory);
         }
@@ -273,9 +293,11 @@ impl<B: Backend> BufferState<B> {
         src_buffer: &BufferState<B>,
         dst_buffer: &BufferState<B>,
         upload_size: u64,
-        staging_pool: &mut B::CommandPool
+        staging_pool: &mut B::CommandPool,
     ) {
-        let transfered_buffer_fence = device.device.create_fence(false)
+        let transfered_buffer_fence = device
+            .device
+            .create_fence(false)
             .expect("Can't create fence");
 
         {
@@ -284,23 +306,23 @@ impl<B: Backend> BufferState<B> {
 
             cmd_buffer.copy_buffer(
                 &src_buffer.get_buffer(),
-                &dst_buffer.get_buffer(), 
+                &dst_buffer.get_buffer(),
                 &[BufferCopy {
                     src: 0,
                     dst: 0,
-                    size: upload_size
-                }]
+                    size: upload_size,
+                }],
             );
 
             cmd_buffer.finish();
 
-            device.queues.queues[0].submit_without_semaphores(
-                iter::once(&cmd_buffer),
-                Some(&transfered_buffer_fence)
-            );
+            device.queues.queues[0]
+                .submit_without_semaphores(iter::once(&cmd_buffer), Some(&transfered_buffer_fence));
         }
 
-        device.device.wait_for_fence(&transfered_buffer_fence, !0)
+        device
+            .device
+            .wait_for_fence(&transfered_buffer_fence, !0)
             .unwrap();
     }
 }

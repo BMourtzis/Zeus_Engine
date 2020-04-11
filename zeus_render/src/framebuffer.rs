@@ -1,27 +1,15 @@
 use gfx_hal::{
     device::Device,
-    Backend,
-    image::{
-        Extent,
-        ViewKind 
-    },
     format::Swizzle,
-    pool::{
-        CommandPool,
-        CommandPoolCreateFlags
-    }
+    image::{Extent, ViewKind},
+    pool::{CommandPool, CommandPoolCreateFlags},
+    Backend,
 };
 
-use std::{
-    cell::RefCell,
-    rc::Rc
-};
+use std::{cell::RefCell, rc::Rc};
 
 use super::{
-    device::DeviceState,
-    pass::RenderPassState,
-    constants::COLOR_RANGE,
-    swapchain::SwapchainState,
+    constants::COLOR_RANGE, device::DeviceState, pass::RenderPassState, swapchain::SwapchainState,
 };
 
 pub struct FramebufferState<B: Backend> {
@@ -33,52 +21,63 @@ pub struct FramebufferState<B: Backend> {
     acquire_semaphores: Option<Vec<B::Semaphore>>,
     present_semaphores: Option<Vec<B::Semaphore>>,
     last_ref: usize,
-    device: Rc<RefCell<DeviceState<B>>>
+    device: Rc<RefCell<DeviceState<B>>>,
 }
 
 impl<B: Backend> FramebufferState<B> {
     pub unsafe fn new(
         device: Rc<RefCell<DeviceState<B>>>,
         render_pass: &RenderPassState<B>,
-        swapchain: &mut SwapchainState<B>
+        swapchain: &mut SwapchainState<B>,
     ) -> Self {
         let (frame_images, framebuffers) = {
             let extent = Extent {
                 width: swapchain.extent.width as _,
                 height: swapchain.extent.height as _,
-                depth: 1
+                depth: 1,
             };
 
-            let pairs = swapchain.backbuffer.take()
-                .unwrap().into_iter()
+            let pairs = swapchain
+                .backbuffer
+                .take()
+                .unwrap()
+                .into_iter()
                 .map(|image| {
-                    let rtv = device.borrow()
-                        .device.create_image_view(
+                    let rtv = device
+                        .borrow()
+                        .device
+                        .create_image_view(
                             &image,
                             ViewKind::D2,
                             swapchain.format,
                             Swizzle::NO,
-                            COLOR_RANGE.clone()
-                        ).unwrap();
+                            COLOR_RANGE.clone(),
+                        )
+                        .unwrap();
                     (image, rtv)
-                }).collect::<Vec<_>>();
-            
-            let fbos = pairs.iter()
+                })
+                .collect::<Vec<_>>();
+
+            let fbos = pairs
+                .iter()
                 .map(|&(_, ref rtv)| {
-                    device.borrow()
-                        .device.create_framebuffer(
+                    device
+                        .borrow()
+                        .device
+                        .create_framebuffer(
                             render_pass.render_pass.as_ref().unwrap(),
                             Some(rtv),
-                            extent
-                        ).unwrap()
-                }).collect();
+                            extent,
+                        )
+                        .unwrap()
+                })
+                .collect();
             (pairs, fbos)
         };
 
         let iter_count = if !frame_images.is_empty() {
             frame_images.len()
-        }
-        else {
+        } else {
             1
         };
 
@@ -88,14 +87,17 @@ impl<B: Backend> FramebufferState<B> {
         let mut acquire_semaphores: Vec<B::Semaphore> = vec![];
         let mut present_semaphores: Vec<B::Semaphore> = vec![];
 
-        for _ in 0 .. iter_count {
+        for _ in 0..iter_count {
             fences.push(device.borrow().device.create_fence(true).unwrap());
             command_pools.push(
-                device.borrow()
-                    .device.create_command_pool(
+                device
+                    .borrow()
+                    .device
+                    .create_command_pool(
                         device.borrow().queues.family,
-                        CommandPoolCreateFlags::empty()
-                    ).expect("Can't create command pool")
+                        CommandPoolCreateFlags::empty(),
+                    )
+                    .expect("Can't create command pool"),
             );
             command_buffer_lists.push(Vec::new());
 
@@ -112,7 +114,7 @@ impl<B: Backend> FramebufferState<B> {
             present_semaphores: Some(present_semaphores),
             acquire_semaphores: Some(acquire_semaphores),
             device,
-            last_ref: 0
+            last_ref: 0,
         }
     }
 
@@ -129,15 +131,15 @@ impl<B: Backend> FramebufferState<B> {
     pub fn get_frame_data(
         &mut self,
         frame_id: Option<usize>,
-        sem_index: Option<usize>
+        sem_index: Option<usize>,
     ) -> (
         Option<(
             &mut B::Fence,
             &mut B::Framebuffer,
             &mut B::CommandPool,
-            &mut Vec<B::CommandBuffer>
+            &mut Vec<B::CommandBuffer>,
         )>,
-        Option<(&mut B::Semaphore, &mut B::Semaphore)>
+        Option<(&mut B::Semaphore, &mut B::Semaphore)>,
     ) {
         (
             if let Some(fid) = frame_id {
@@ -145,24 +147,21 @@ impl<B: Backend> FramebufferState<B> {
                     &mut self.framebuffer_fences.as_mut().unwrap()[fid],
                     &mut self.framebuffers.as_mut().unwrap()[fid],
                     &mut self.command_pools.as_mut().unwrap()[fid],
-                    &mut self.command_buffer_lists[fid]
+                    &mut self.command_buffer_lists[fid],
                 ))
-            }
-            else {
+            } else {
                 None
             },
             if let Some(sid) = sem_index {
                 Some((
                     &mut self.acquire_semaphores.as_mut().unwrap()[sid],
-                    &mut self.present_semaphores.as_mut().unwrap()[sid]
+                    &mut self.present_semaphores.as_mut().unwrap()[sid],
                 ))
-            }
-            else {
+            } else {
                 None
-            }
+            },
         )
     }
-
 }
 
 impl<B: Backend> Drop for FramebufferState<B> {
@@ -175,8 +174,11 @@ impl<B: Backend> Drop for FramebufferState<B> {
                 device.destroy_fence(fence);
             }
 
-            for (mut command_pool, command_buffer_list) in self.command_pools.take()
-                .unwrap().into_iter()
+            for (mut command_pool, command_buffer_list) in self
+                .command_pools
+                .take()
+                .unwrap()
+                .into_iter()
                 .zip(self.command_buffer_lists.drain(..))
             {
                 command_pool.free(command_buffer_list);
@@ -202,9 +204,7 @@ impl<B: Backend> Drop for FramebufferState<B> {
     }
 }
 
-
 //TODO: move the frame data into this struct
-//TODO: timeline set up
 // pub struct FrameData<B> {
 //     sid: Option<(
 //         &mut B::Fence,
@@ -213,7 +213,7 @@ impl<B: Backend> Drop for FramebufferState<B> {
 //         &mut Vec<B::CommandBuffer>
 //     )>,
 //     pid: Option<(
-//         &mut B::Semaphore, 
+//         &mut B::Semaphore,
 //         &mut B::Semaphore
-//     )> 
+//     )>
 // }

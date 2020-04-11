@@ -1,13 +1,12 @@
 use gfx_hal::{
     adapter::{Adapter, MemoryType, PhysicalDevice},
-    Backend,
-    Limits
+    Backend, Limits,
 };
 
 pub struct AdapterState<B: Backend> {
     pub adapter: Option<Adapter<B>>,
     pub memory_types: Vec<MemoryType>,
-    pub limits: Limits
+    pub limits: Limits,
 }
 
 impl<B: Backend> AdapterState<B> {
@@ -22,7 +21,7 @@ impl<B: Backend> AdapterState<B> {
         AdapterState {
             adapter: Some(adapter),
             memory_types,
-            limits
+            limits,
         }
     }
 }

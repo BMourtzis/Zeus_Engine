@@ -30,3 +30,4 @@ A graphics engine built with Rust and Vulkan API.
 - [Profiler](https://github.com/glennw/thread_profiler)
 - [Deno_Core: js/ts intepreter](https://github.com/denoland/deno/tree/master/core)
 - [RustPython: Python intepreter](https://github.com/RustPython/RustPython)
+- [Miri: Static analysis tool](https://github.com/rust-lang/miri)

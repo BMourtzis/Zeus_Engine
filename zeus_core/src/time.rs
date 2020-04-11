@@ -1,17 +1,15 @@
-use std::time::{
-    Instant
-};
+use std::time::Instant;
 
 pub struct Stopwatch {
     last_frame_time: Instant,
-    delta: u128
+    delta: u128,
 }
 
 impl Stopwatch {
     pub fn new() -> Self {
         Stopwatch {
             last_frame_time: Instant::now(),
-            delta: 0
+            delta: 0,
         }
     }
 
@@ -25,7 +23,7 @@ impl Stopwatch {
     }
 
     pub fn get_delta_seconds(&self) -> u128 {
-        self.delta/1000
+        self.delta / 1000
     }
 
     pub fn get_delta_f64(&self) -> f32 {
@@ -33,7 +31,7 @@ impl Stopwatch {
     }
 
     pub fn get_delta_seconds_f64(&self) -> f32 {
-        (self.delta as f32)/1000.0
+        (self.delta as f32) / 1000.0
     }
 
     pub fn get_framerate(&self) -> f32 {
@@ -41,11 +39,17 @@ impl Stopwatch {
             return 0.0;
         }
 
-        1000.0/(self.delta as f32)
+        1000.0 / (self.delta as f32)
     }
 
     pub fn check_delta(&self) -> u128 {
         self.last_frame_time.elapsed().as_millis()
+    }
+}
+
+impl Default for Stopwatch {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

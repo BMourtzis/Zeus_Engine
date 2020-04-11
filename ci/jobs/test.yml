@@ -1,0 +1,43 @@
+parameters:
+  projects: ['zeus_core', 'zeus_render']
+
+steps:
+  - script: cargo install cargo-suity --verbose
+    displayName: Install cargo suity
+
+  # Run tests for root
+  - task: Cargo@1
+    inputs:
+      cargoCommand: 'suity'
+      verbose: true
+    displayName: Run root tests
+
+  # Run tests for each sub-project
+  - ${{ each project in parameters.projects}}:
+    - script: |
+        cd ${{ project }}
+        cargo suity
+        cd ..
+      displayName: Run ${{ project }} Tests
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '**/test-results/*.xml'
+      failTaskOnFailedTests: true
+    displayName: "Publish test results"
+
+  # All platforms.
+  - script: |
+      set -e
+      echo "Rust up version"
+      rustup -V
+      echo "rustup installed commponents list"
+      rustup component list --installed
+      echo "rustup show:"
+      rustup show
+      echo "rustc -Vv"
+      rustc -Vv
+      echo "cargo -V"
+      cargo -V
+    displayName: Query rustup, rust and cargo versions

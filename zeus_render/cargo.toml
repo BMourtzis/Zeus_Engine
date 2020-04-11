@@ -7,8 +7,6 @@ edition = "2018"
 [dependencies]
 zeus_core = { path = "../zeus_core", version = "0.1.0"}
 image     = "0.21"
-memoffset = "0.2"
-tobj      = "0.1.6"
 gfx-hal       = "0.4"
 gfx-backend-vulkan = "0.4"
 winit = { version = "0.21.0", features = ["web-sys"] }

@@ -1,0 +1,14 @@
+[global]
+features = []
+format   = "JUnit"
+output   = "./test-results"
+
+[workflow.zeus_engine]
+doc         = false
+unit        = true
+integration = ["*"]
+
+[workflow.engine_docs]
+doc         = true
+unit        = false
+integration = []

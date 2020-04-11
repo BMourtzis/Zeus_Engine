@@ -1,0 +1,35 @@
+jobs:
+  - job: check
+    displayName: Check Zeus Engine
+    steps:
+      # Install Clippy
+      - task: Rustup@1
+        inputs:
+          rustupCommand: 'update'
+          verbose: true
+        displayName: Rustup Update
+
+      - task: Rustup@1
+        inputs:
+          rustupCommand: 'component add clippy'
+          verbose: true
+        displayName: Add Clippy
+
+      # Run Check
+      - task: Cargo@1
+        inputs:
+          cargoCommand: 'check'
+          verbose: true
+        displayName: Run Check
+
+      # Run clippy check
+      - task: Cargo@1
+        inputs:
+          cargoCommand: 'clippy'
+          verbose: true
+        displayName: Run Clippy
+        
+  - job: test
+    displayName: Test Zeus_Engine
+    steps: 
+    - template: ../jobs/test.yml

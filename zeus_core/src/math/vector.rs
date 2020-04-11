@@ -1,14 +1,6 @@
-use std::ops::{
-    Add, AddAssign,
-    Sub, SubAssign,
-    Mul, MulAssign,
-    Div, DivAssign
-};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
-use crate::math::matrix::{
-    Matrix3,
-    Matrix4
-};
+use crate::math::matrix::{Matrix3, Matrix4};
 
 // region Vector2
 
@@ -16,23 +8,23 @@ use crate::math::matrix::{
 #[derive(Debug, Copy, Clone)]
 pub struct Vector2 {
     pub x: f32,
-    pub y: f32
+    pub y: f32,
 }
 
 impl Vector2 {
     //Constants
-    pub const X: Self = Vector2{x: 1.0, y: 0.0};
-    pub const Y: Self = Vector2{x: 0.0, y: 1.0};
+    pub const X: Self = Vector2 { x: 1.0, y: 0.0 };
+    pub const Y: Self = Vector2 { x: 0.0, y: 1.0 };
 
-    pub fn new(x: f32, y: f32) -> Self {
+    pub fn new(
+        x: f32,
+        y: f32,
+    ) -> Self {
         Vector2 { x, y }
     }
 
-    pub fn from_vector(v: &Vector2) -> Self {
-        Vector2 {
-            x: v.x,
-            y: v.y
-        }
+    pub fn copy(v: Vector2) -> Self {
+        Vector2 { x: v.x, y: v.y }
     }
 
     //Methods
@@ -41,47 +33,59 @@ impl Vector2 {
         self.y *= -1.0;
     }
 
-    pub fn magn(&self) -> f32 {
+    pub fn magn(self) -> f32 {
         (self.x.powi(2) + self.y.powi(2)).sqrt()
     }
 
-    pub fn manhanttan_length(&self) -> f32 {
+    pub fn manhanttan_length(self) -> f32 {
         self.x + self.y
     }
 
-    pub fn normalize(&self) -> Vector2 {
+    pub fn normalize(self) -> Vector2 {
         self / self.magn()
     }
 
-    pub fn dot(&self, rhs: &Vector2) -> f32 {
-        self*rhs
+    pub fn dot(
+        self,
+        rhs: Vector2,
+    ) -> f32 {
+        self * rhs
     }
 }
 
 impl Add for Vector2 {
     type Output = Self;
 
-    fn add(self, other: Vector2) -> Self::Output {
-        Vector2 { 
+    fn add(
+        self,
+        other: Vector2,
+    ) -> Self::Output {
+        Vector2 {
             x: self.x + other.x,
-            y: self.y + other.y
+            y: self.y + other.y,
         }
     }
 }
 
-impl <'a, 'b> Add<&'b Vector2> for &'a Vector2 {
+impl<'a, 'b> Add<&'b Vector2> for &'a Vector2 {
     type Output = Vector2;
 
-    fn add (self, rhs: &'b Vector2) -> Self::Output {
+    fn add(
+        self,
+        rhs: &'b Vector2,
+    ) -> Self::Output {
         Vector2 {
             x: self.x + rhs.x,
-            y: self.y + rhs.y
+            y: self.y + rhs.y,
         }
     }
 }
 
 impl AddAssign for Vector2 {
-    fn add_assign(&mut self, rhs: Self) {
+    fn add_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x += rhs.x;
         self.y += rhs.y;
     }
@@ -90,27 +94,36 @@ impl AddAssign for Vector2 {
 impl Sub for Vector2 {
     type Output = Self;
 
-    fn sub(self, other: Vector2) -> Self::Output {
-        Vector2 { 
+    fn sub(
+        self,
+        other: Vector2,
+    ) -> Self::Output {
+        Vector2 {
             x: self.x - other.x,
-            y: self.y - other.y
+            y: self.y - other.y,
         }
     }
 }
 
-impl <'a, 'b> Sub<&'b Vector2> for &'a Vector2 {
+impl<'a, 'b> Sub<&'b Vector2> for &'a Vector2 {
     type Output = Vector2;
 
-    fn sub(self, rhs: &'b Vector2) -> Self::Output {
+    fn sub(
+        self,
+        rhs: &'b Vector2,
+    ) -> Self::Output {
         Vector2 {
             x: self.x - rhs.x,
-            y: self.y - rhs.y
+            y: self.y - rhs.y,
         }
     }
 }
 
 impl SubAssign for Vector2 {
-    fn sub_assign(&mut self, rhs: Self) {
+    fn sub_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x -= rhs.x;
         self.y -= rhs.y;
     }
@@ -119,26 +132,35 @@ impl SubAssign for Vector2 {
 impl Mul for Vector2 {
     type Output = f32;
 
-    fn mul(self, rhs: Vector2) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y
+    fn mul(
+        self,
+        rhs: Vector2,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y
     }
 }
 
-impl <'a, 'b> Mul<&'b Vector2> for &'a Vector2 {
+impl<'a, 'b> Mul<&'b Vector2> for &'a Vector2 {
     type Output = f32;
 
-    fn mul(self, rhs: &'b Vector2) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y
+    fn mul(
+        self,
+        rhs: &'b Vector2,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y
     }
 }
 
 impl Mul<f32> for Vector2 {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         Vector2 {
             x: self.x * rhs,
-            y: self.y * rhs
+            y: self.y * rhs,
         }
     }
 }
@@ -146,10 +168,13 @@ impl Mul<f32> for Vector2 {
 impl<'a> Mul<f32> for &'a Vector2 {
     type Output = Vector2;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         Vector2 {
             x: self.x * rhs,
-            y: self.y * rhs
+            y: self.y * rhs,
         }
     }
 }
@@ -157,16 +182,22 @@ impl<'a> Mul<f32> for &'a Vector2 {
 impl Mul<Vector2> for f32 {
     type Output = Vector2;
 
-    fn mul(self, rhs: Vector2) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Vector2,
+    ) -> Self::Output {
         Vector2 {
             x: rhs.x * self,
-            y: rhs.y * self
+            y: rhs.y * self,
         }
     }
 }
 
 impl MulAssign<f32> for Vector2 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         self.x *= rhs;
         self.y *= rhs;
     }
@@ -175,7 +206,10 @@ impl MulAssign<f32> for Vector2 {
 impl Div<f32> for Vector2 {
     type Output = Self;
 
-    fn div(self, rhs: f32) -> Self{
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -185,7 +219,7 @@ impl Div<f32> for Vector2 {
 
         Vector2 {
             x: self.x / div,
-            y: self.y / div
+            y: self.y / div,
         }
     }
 }
@@ -193,7 +227,10 @@ impl Div<f32> for Vector2 {
 impl<'a> Div<f32> for &'a Vector2 {
     type Output = Vector2;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -203,13 +240,16 @@ impl<'a> Div<f32> for &'a Vector2 {
 
         Vector2 {
             x: self.x / div,
-            y: self.y / div
+            y: self.y / div,
         }
     }
 }
 
 impl DivAssign<f32> for Vector2 {
-    fn div_assign(&mut self, rhs: f32) {
+    fn div_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -223,12 +263,8 @@ impl DivAssign<f32> for Vector2 {
 }
 
 impl Default for Vector2 {
-    fn default() -> Self
-    {
-        Vector2 { 
-            x: 0.0,
-            y: 0.0
-        }
+    fn default() -> Self {
+        Vector2 { x: 0.0, y: 0.0 }
     }
 }
 
@@ -241,24 +277,40 @@ impl Default for Vector2 {
 pub struct Vector3 {
     pub x: f32,
     pub y: f32,
-    pub z: f32
+    pub z: f32,
 }
 
 impl Vector3 {
     //Constants
-    pub const X: Self = Vector3{x: 1.0, y: 0.0, z: 0.0};
-    pub const Y: Self = Vector3{x: 0.0, y: 1.0, z: 0.0};
-    pub const Z: Self = Vector3{x: 0.0, y: 0.0, z: 1.0};
+    pub const X: Self = Vector3 {
+        x: 1.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    pub const Y: Self = Vector3 {
+        x: 0.0,
+        y: 1.0,
+        z: 0.0,
+    };
+    pub const Z: Self = Vector3 {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+    };
 
-    pub fn new(x:f32, y:f32, z:f32) -> Self {
-        Vector3 { x, y, z}
+    pub fn new(
+        x: f32,
+        y: f32,
+        z: f32,
+    ) -> Self {
+        Vector3 { x, y, z }
     }
-    
+
     pub fn from_vector(v: &Vector3) -> Self {
         Vector3 {
             x: v.x,
             y: v.y,
-            z: v.z
+            z: v.z,
         }
     }
 
@@ -281,19 +333,29 @@ impl Vector3 {
         self / self.magn()
     }
 
-    pub fn dot(&self, rhs: &Vector3) -> f32 {
-        self*rhs
+    pub fn dot(
+        &self,
+        rhs: &Vector3,
+    ) -> f32 {
+        self * rhs
     }
 
-    pub fn cross(&self, rhs: &Vector3) -> Vector3 {
+    pub fn cross(
+        &self,
+        rhs: &Vector3,
+    ) -> Vector3 {
         Vector3::new(
-            self.y*rhs.z - self.z*rhs.y,
-            self.z*rhs.x - self.x*rhs.z, 
-            self.x*rhs.y - self.y*rhs.x
+            self.y * rhs.z - self.z * rhs.y,
+            self.z * rhs.x - self.x * rhs.z,
+            self.x * rhs.y - self.y * rhs.x,
         )
     }
 
-    pub fn triple_product(a: &Vector3, b: &Vector3, c: &Vector3) -> f32 {
+    pub fn triple_product(
+        a: &Vector3,
+        b: &Vector3,
+        c: &Vector3,
+    ) -> f32 {
         b.cross(c).dot(a)
     }
 }
@@ -301,29 +363,38 @@ impl Vector3 {
 impl Add for Vector3 {
     type Output = Self;
 
-    fn add(self, other: Vector3) -> Self {
-        Vector3 { 
+    fn add(
+        self,
+        other: Vector3,
+    ) -> Self {
+        Vector3 {
             x: self.x + other.x,
             y: self.y + other.y,
-            z: self.z + other.z
+            z: self.z + other.z,
         }
     }
 }
 
-impl <'a, 'b> Add<&'b Vector3> for &'a Vector3 {
+impl<'a, 'b> Add<&'b Vector3> for &'a Vector3 {
     type Output = Vector3;
 
-    fn add (self, rhs: &'b Vector3) -> Self::Output {
+    fn add(
+        self,
+        rhs: &'b Vector3,
+    ) -> Self::Output {
         Vector3 {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
-            z: self.z + rhs.z
+            z: self.z + rhs.z,
         }
     }
 }
 
 impl AddAssign for Vector3 {
-    fn add_assign(&mut self, rhs: Self) {
+    fn add_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x += rhs.x;
         self.y += rhs.y;
         self.z += rhs.z;
@@ -333,29 +404,38 @@ impl AddAssign for Vector3 {
 impl Sub for Vector3 {
     type Output = Vector3;
 
-    fn sub(self, other: Vector3) -> Self::Output {
-        Vector3 { 
+    fn sub(
+        self,
+        other: Vector3,
+    ) -> Self::Output {
+        Vector3 {
             x: self.x - other.x,
             y: self.y - other.y,
-            z: self.z - other.z
+            z: self.z - other.z,
         }
     }
 }
 
-impl <'a, 'b> Sub<&'b Vector3> for &'a Vector3 {
+impl<'a, 'b> Sub<&'b Vector3> for &'a Vector3 {
     type Output = Vector3;
 
-    fn sub(self, rhs: &'b Vector3) -> Self::Output {
+    fn sub(
+        self,
+        rhs: &'b Vector3,
+    ) -> Self::Output {
         Vector3 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
-            z: self.z - rhs.z
+            z: self.z - rhs.z,
         }
     }
 }
 
 impl SubAssign for Vector3 {
-    fn sub_assign(&mut self, rhs: Self) {
+    fn sub_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x -= rhs.x;
         self.y -= rhs.y;
         self.z -= rhs.z;
@@ -365,33 +445,45 @@ impl SubAssign for Vector3 {
 impl Mul for Vector3 {
     type Output = f32;
 
-    fn mul(self, rhs: Vector3) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y + self.z*rhs.z
+    fn mul(
+        self,
+        rhs: Vector3,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 }
 
-impl <'a, 'b> Mul<&'b Vector3> for &'a Vector3 {
+impl<'a, 'b> Mul<&'b Vector3> for &'a Vector3 {
     type Output = f32;
 
-    fn mul(self, rhs: &'b Vector3) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y + self.z*rhs.z
+    fn mul(
+        self,
+        rhs: &'b Vector3,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
     }
 }
 
 impl Mul<f32> for Vector3 {
     type Output = Vector3;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         Vector3 {
             x: self.x * rhs,
             y: self.y * rhs,
-            z: self.z * rhs
+            z: self.z * rhs,
         }
     }
 }
 
 impl MulAssign<Matrix3> for Vector3 {
-    fn mul_assign(&mut self, rhs: Matrix3) {
+    fn mul_assign(
+        &mut self,
+        rhs: Matrix3,
+    ) {
         let new_x = self.x * rhs[0] + self.y * rhs[3] + self.z * rhs[6];
         let new_y = self.x * rhs[1] + self.y * rhs[4] + self.z * rhs[7];
         let new_z = self.x * rhs[2] + self.y * rhs[5] + self.z * rhs[8];
@@ -405,11 +497,14 @@ impl MulAssign<Matrix3> for Vector3 {
 impl<'a> Mul<f32> for &'a Vector3 {
     type Output = Vector3;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         Vector3 {
             x: self.x * rhs,
             y: self.y * rhs,
-            z: self.z * rhs
+            z: self.z * rhs,
         }
     }
 }
@@ -417,17 +512,23 @@ impl<'a> Mul<f32> for &'a Vector3 {
 impl Mul<Vector3> for f32 {
     type Output = Vector3;
 
-    fn mul(self, rhs: Vector3) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Vector3,
+    ) -> Self::Output {
         Vector3 {
             x: rhs.x * self,
             y: rhs.y * self,
-            z: rhs.z * self
+            z: rhs.z * self,
         }
     }
 }
 
 impl MulAssign<f32> for Vector3 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         self.x *= rhs;
         self.y *= rhs;
         self.z *= rhs;
@@ -437,7 +538,10 @@ impl MulAssign<f32> for Vector3 {
 impl Div<f32> for Vector3 {
     type Output = Self;
 
-    fn div(self, rhs: f32) -> Self{
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -448,7 +552,7 @@ impl Div<f32> for Vector3 {
         Vector3 {
             x: self.x / div,
             y: self.y / div,
-            z: self.z / div
+            z: self.z / div,
         }
     }
 }
@@ -456,7 +560,10 @@ impl Div<f32> for Vector3 {
 impl<'a> Div<f32> for &'a Vector3 {
     type Output = Vector3;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -467,13 +574,16 @@ impl<'a> Div<f32> for &'a Vector3 {
         Vector3 {
             x: self.x / div,
             y: self.y / div,
-            z: self.z / div
+            z: self.z / div,
         }
     }
 }
 
 impl DivAssign<f32> for Vector3 {
-    fn div_assign(&mut self, rhs: f32) {
+    fn div_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -488,17 +598,16 @@ impl DivAssign<f32> for Vector3 {
 }
 
 impl Default for Vector3 {
-    fn default() -> Self
-    {
-        Vector3 { 
+    fn default() -> Self {
+        Vector3 {
             x: 0.0,
             y: 0.0,
-            z: 0.0
+            z: 0.0,
         }
     }
 }
 
-// endregion 
+// endregion
 
 // region Vector4
 
@@ -508,26 +617,51 @@ pub struct Vector4 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
-    pub w: f32
+    pub w: f32,
 }
 
 impl Vector4 {
     //Constants
-    pub const X: Self = Vector4{x: 1.0, y: 0.0, z: 0.0, w: 0.0};
-    pub const Y: Self = Vector4{x: 0.0, y: 1.0, z: 0.0, w: 0.0};
-    pub const Z: Self = Vector4{x: 0.0, y: 0.0, z: 1.0, w: 0.0};
-    pub const W: Self = Vector4{x: 0.0, y: 0.0, z: 0.0, w: 1.0};
+    pub const X: Self = Vector4 {
+        x: 1.0,
+        y: 0.0,
+        z: 0.0,
+        w: 0.0,
+    };
+    pub const Y: Self = Vector4 {
+        x: 0.0,
+        y: 1.0,
+        z: 0.0,
+        w: 0.0,
+    };
+    pub const Z: Self = Vector4 {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+        w: 0.0,
+    };
+    pub const W: Self = Vector4 {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        w: 1.0,
+    };
 
-    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+    pub fn new(
+        x: f32,
+        y: f32,
+        z: f32,
+        w: f32,
+    ) -> Self {
         Vector4 { x, y, z, w }
     }
 
     pub fn zero() -> Self {
-        Vector4 { 
+        Vector4 {
             x: 0.0,
             y: 0.0,
             z: 0.0,
-            w: 0.0 
+            w: 0.0,
         }
     }
 
@@ -536,7 +670,7 @@ impl Vector4 {
             x: vec.x,
             y: vec.y,
             z: vec.z,
-            w: vec.w
+            w: vec.w,
         }
     }
 
@@ -545,7 +679,7 @@ impl Vector4 {
             x: vec.x,
             y: vec.y,
             z: vec.z,
-            w: 1.0
+            w: 1.0,
         }
     }
 
@@ -569,39 +703,51 @@ impl Vector4 {
         self / self.magn()
     }
 
-    pub fn dot(&self, rhs: &Vector4) -> f32 {
-        self*rhs
+    pub fn dot(
+        &self,
+        rhs: &Vector4,
+    ) -> f32 {
+        self * rhs
     }
 }
 
 impl Add for Vector4 {
     type Output = Self;
 
-    fn add(self, other: Vector4) -> Self::Output {
-        Vector4 { 
+    fn add(
+        self,
+        other: Vector4,
+    ) -> Self::Output {
+        Vector4 {
             x: self.x + other.x,
             y: self.y + other.y,
             z: self.z + other.z,
-            w: self.w + other.w
+            w: self.w + other.w,
         }
     }
 }
 
-impl <'a, 'b> Add<&'b Vector4> for &'a Vector4 {
+impl<'a, 'b> Add<&'b Vector4> for &'a Vector4 {
     type Output = Vector4;
 
-    fn add (self, rhs: &'b Vector4) -> Self::Output {
+    fn add(
+        self,
+        rhs: &'b Vector4,
+    ) -> Self::Output {
         Vector4 {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
             z: self.z + rhs.z,
-            w: self.w + rhs.w
+            w: self.w + rhs.w,
         }
     }
 }
 
 impl AddAssign for Vector4 {
-    fn add_assign(&mut self, rhs: Self) {
+    fn add_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x += rhs.x;
         self.y += rhs.y;
         self.z += rhs.z;
@@ -612,31 +758,40 @@ impl AddAssign for Vector4 {
 impl Sub for Vector4 {
     type Output = Self;
 
-    fn sub(self, other: Vector4) -> Self::Output {
-        Vector4 { 
+    fn sub(
+        self,
+        other: Vector4,
+    ) -> Self::Output {
+        Vector4 {
             x: self.x - other.x,
             y: self.y - other.y,
             z: self.z - other.z,
-            w: self.w - other.w
+            w: self.w - other.w,
         }
     }
 }
 
-impl <'a, 'b> Sub<&'b Vector4> for &'a Vector4 {
+impl<'a, 'b> Sub<&'b Vector4> for &'a Vector4 {
     type Output = Vector4;
 
-    fn sub(self, rhs: &'b Vector4) -> Self::Output {
+    fn sub(
+        self,
+        rhs: &'b Vector4,
+    ) -> Self::Output {
         Vector4 {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
             z: self.z - rhs.z,
-            w: self.w - rhs.w
+            w: self.w - rhs.w,
         }
     }
 }
 
 impl SubAssign for Vector4 {
-    fn sub_assign(&mut self, rhs: Self) {
+    fn sub_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         self.x -= rhs.x;
         self.y -= rhs.y;
         self.z -= rhs.z;
@@ -647,13 +802,19 @@ impl SubAssign for Vector4 {
 impl Mul for Vector4 {
     type Output = f32;
 
-    fn mul(self, rhs: Vector4) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y + self.z*rhs.z + self.w*rhs.w
+    fn mul(
+        self,
+        rhs: Vector4,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z + self.w * rhs.w
     }
 }
 
 impl MulAssign<Matrix4> for Vector4 {
-    fn mul_assign(&mut self, rhs: Matrix4) {
+    fn mul_assign(
+        &mut self,
+        rhs: Matrix4,
+    ) {
         let new_x = self.x * rhs[0] + self.y * rhs[1] + self.z * rhs[2] + self.w * rhs[3];
         let new_y = self.x * rhs[4] + self.y * rhs[5] + self.z * rhs[6] + self.w * rhs[7];
         let new_z = self.x * rhs[8] + self.y * rhs[9] + self.z * rhs[10] + self.w * rhs[11];
@@ -666,23 +827,29 @@ impl MulAssign<Matrix4> for Vector4 {
     }
 }
 
-impl <'a, 'b> Mul<&'b Vector4> for &'a Vector4 {
+impl<'a, 'b> Mul<&'b Vector4> for &'a Vector4 {
     type Output = f32;
 
-    fn mul(self, rhs: &'b Vector4) -> Self::Output {
-        self.x*rhs.x + self.y*rhs.y + self.z*rhs.z + self.w*rhs.w
+    fn mul(
+        self,
+        rhs: &'b Vector4,
+    ) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z + self.w * rhs.w
     }
 }
 
 impl Mul<f32> for Vector4 {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self {
         Vector4 {
             x: self.x * rhs,
             y: self.y * rhs,
             z: self.z * rhs,
-            w: self.w * rhs
+            w: self.w * rhs,
         }
     }
 }
@@ -690,12 +857,15 @@ impl Mul<f32> for Vector4 {
 impl<'a> Mul<f32> for &'a Vector4 {
     type Output = Vector4;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         Vector4 {
             x: self.x * rhs,
             y: self.y * rhs,
             z: self.z * rhs,
-            w: self.w * rhs
+            w: self.w * rhs,
         }
     }
 }
@@ -703,18 +873,24 @@ impl<'a> Mul<f32> for &'a Vector4 {
 impl Mul<Vector4> for f32 {
     type Output = Vector4;
 
-    fn mul(self, rhs: Vector4) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Vector4,
+    ) -> Self::Output {
         Vector4 {
             x: rhs.x * self,
             y: rhs.y * self,
             z: rhs.z * self,
-            w: rhs.w * self
+            w: rhs.w * self,
         }
     }
 }
 
 impl MulAssign<f32> for Vector4 {
-    fn mul_assign(&mut self, rhs: f32) {
+    fn mul_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         self.x *= rhs;
         self.y *= rhs;
         self.z *= rhs;
@@ -725,7 +901,10 @@ impl MulAssign<f32> for Vector4 {
 impl Div<f32> for Vector4 {
     type Output = Self;
 
-    fn div(self, rhs: f32) -> Self::Output{
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -737,7 +916,7 @@ impl Div<f32> for Vector4 {
             x: self.x / div,
             y: self.y / div,
             z: self.z / div,
-            w: self.w / div
+            w: self.w / div,
         }
     }
 }
@@ -745,7 +924,10 @@ impl Div<f32> for Vector4 {
 impl<'a> Div<f32> for &'a Vector4 {
     type Output = Vector4;
 
-    fn div(self, rhs: f32) -> Self::Output {
+    fn div(
+        self,
+        rhs: f32,
+    ) -> Self::Output {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -757,13 +939,16 @@ impl<'a> Div<f32> for &'a Vector4 {
             x: self.x / div,
             y: self.y / div,
             z: self.z / div,
-            w: self.w / div
+            w: self.w / div,
         }
     }
 }
 
 impl DivAssign<f32> for Vector4 {
-    fn div_assign(&mut self, rhs: f32) {
+    fn div_assign(
+        &mut self,
+        rhs: f32,
+    ) {
         let mut div = rhs;
 
         if div == 0.0 {
@@ -779,13 +964,12 @@ impl DivAssign<f32> for Vector4 {
 }
 
 impl Default for Vector4 {
-    fn default() -> Self
-    {
-        Vector4 { 
+    fn default() -> Self {
+        Vector4 {
             x: 1.0,
             y: 1.0,
             z: 1.0,
-            w: 1.0
+            w: 1.0,
         }
     }
 }
@@ -803,21 +987,21 @@ mod tests {
         #[test]
         fn default() {
             let vec = Vector2::default();
-    
+
             const ZERO: f32 = 0.00;
-    
+
             assert_eq!(vec.x, ZERO);
             assert_eq!(vec.y, ZERO);
         }
-    
+
         #[test]
         fn new() {
             let vec = Vector2::new(34.0, -5.0);
 
-            assert_eq!(vec.x,34.0);
+            assert_eq!(vec.x, 34.0);
             assert_eq!(vec.y, -5.0);
         }
-        
+
         //Methods
         #[test]
         fn negate() {
@@ -963,7 +1147,7 @@ mod tests {
             let vec1 = Vector2::new(2.0, 2.0);
             let vec2 = Vector2::new(1.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -981,7 +1165,7 @@ mod tests {
             let vec1 = &Vector2::new(2.0, 2.0);
             let vec2 = &Vector2::new(1.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -998,7 +1182,7 @@ mod tests {
         fn mul() {
             let vec = Vector2::new(1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1013,7 +1197,7 @@ mod tests {
         fn mul_ref() {
             let vec = &Vector2::new(1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1033,12 +1217,12 @@ mod tests {
             assert_eq!(vec.x, 6.0);
             assert_eq!(vec.y, 3.0);
         }
-        
+
         #[test]
         fn number_mul() {
             let vec1 = Vector2::new(3.0, 3.0);
 
-            let div = 3.0*vec1;
+            let div = 3.0 * vec1;
 
             assert_eq!(div.x, 9.0);
             assert_eq!(div.y, 9.0);
@@ -1051,7 +1235,7 @@ mod tests {
         fn div() {
             let vec = Vector2::new(3.0, 2.0);
 
-            let div = vec/2.0;
+            let div = vec / 2.0;
 
             assert_eq!(div.x, 1.5);
             assert_eq!(div.y, 1.0);
@@ -1064,7 +1248,7 @@ mod tests {
         fn div_by_zero() {
             let vec = Vector2::new(3.0, 2.0);
 
-            let div = vec/0.0;
+            let div = vec / 0.0;
 
             assert!(f32::is_nan(div.x));
             assert!(f32::is_nan(div.y));
@@ -1095,21 +1279,21 @@ mod tests {
     }
 
     mod vector3 {
-        use crate::math::vector::Vector3;
         use crate::math::matrix::Matrix3;
+        use crate::math::vector::Vector3;
 
         //Constructors
         #[test]
         fn default() {
             let vec = Vector3::default();
-    
+
             const ZERO: f32 = 0.00;
-    
+
             assert_eq!(vec.x, ZERO);
             assert_eq!(vec.y, ZERO);
             assert_eq!(vec.z, ZERO);
         }
-    
+
         #[test]
         fn new() {
             const X: f32 = 34.0;
@@ -1122,7 +1306,7 @@ mod tests {
             assert_eq!(vec.y, Y);
             assert_eq!(vec.z, Z);
         }
-        
+
         //Methods
         #[test]
         fn negate() {
@@ -1280,7 +1464,7 @@ mod tests {
             let vec1 = Vector3::new(2.0, 2.0, 2.0);
             let vec2 = Vector3::new(1.0, 0.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -1300,7 +1484,7 @@ mod tests {
             let vec1 = &Vector3::new(2.0, 2.0, 2.0);
             let vec2 = &Vector3::new(1.0, 0.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -1319,7 +1503,7 @@ mod tests {
         fn mul() {
             let vec = Vector3::new(1.0, 1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1336,7 +1520,7 @@ mod tests {
         fn mul_ref() {
             let vec = &Vector3::new(1.0, 1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1376,12 +1560,12 @@ mod tests {
             assert_eq!(vec.y, 79.0);
             assert_eq!(vec.z, 93.0);
         }
-        
+
         #[test]
         fn number_mul() {
             let vec1 = Vector3::new(3.0, 3.0, 3.0);
 
-            let div = 3.0*vec1;
+            let div = 3.0 * vec1;
 
             assert_eq!(div.x, 9.0);
             assert_eq!(div.y, 9.0);
@@ -1396,7 +1580,7 @@ mod tests {
         fn div() {
             let vec = Vector3::new(3.0, 2.0, 44.0);
 
-            let div = vec/2.0;
+            let div = vec / 2.0;
 
             assert_eq!(div.x, 1.5);
             assert_eq!(div.y, 1.0);
@@ -1411,7 +1595,7 @@ mod tests {
         fn div_by_zero() {
             let vec = Vector3::new(3.0, 2.0, 44.0);
 
-            let div = vec/0.0;
+            let div = vec / 0.0;
 
             assert!(f32::is_nan(div.x));
             assert!(f32::is_nan(div.y));
@@ -1446,21 +1630,21 @@ mod tests {
     }
 
     mod vector4 {
-        use crate::math::vector::{ Vector3, Vector4 };
+        use crate::math::vector::{Vector3, Vector4};
 
         //Constructors
         #[test]
         fn default() {
             let vec = Vector4::default();
-    
+
             const ONE: f32 = 1.0;
-    
+
             assert_eq!(vec.x, ONE);
             assert_eq!(vec.y, ONE);
             assert_eq!(vec.z, ONE);
             assert_eq!(vec.w, ONE);
         }
-    
+
         #[test]
         fn new() {
             let vec = Vector4::new(34.0, -5.0, 135.353_245, 0.0);
@@ -1474,9 +1658,9 @@ mod tests {
         #[test]
         fn zero() {
             let vec = Vector4::zero();
-    
+
             const ZERO: f32 = 0.0;
-    
+
             assert_eq!(vec.x, ZERO);
             assert_eq!(vec.y, ZERO);
             assert_eq!(vec.z, ZERO);
@@ -1498,7 +1682,7 @@ mod tests {
             assert_eq!(vec3.y, 4.0);
             assert_eq!(vec3.z, 5.0);
         }
-        
+
         //Methods
         #[test]
         fn negate() {
@@ -1669,7 +1853,7 @@ mod tests {
             let vec1 = Vector4::new(2.0, 2.0, 2.0, 2.0);
             let vec2 = Vector4::new(1.0, 0.0, 0.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -1691,7 +1875,7 @@ mod tests {
             let vec1 = &Vector4::new(2.0, 2.0, 2.0, 2.0);
             let vec2 = &Vector4::new(1.0, 0.0, 0.0, 0.0);
 
-            let dot = vec1*vec2;
+            let dot = vec1 * vec2;
 
             //Check dot product
             assert_eq!(dot, 2.0);
@@ -1712,7 +1896,7 @@ mod tests {
         fn mul() {
             let vec = Vector4::new(1.0, 1.0, 1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1731,7 +1915,7 @@ mod tests {
         fn mul_ref() {
             let vec = &Vector4::new(1.0, 1.0, 1.0, 1.0);
 
-            let new_vec = vec*3.0;
+            let new_vec = vec * 3.0;
 
             //Check Vector
             assert_eq!(new_vec.x, 3.0);
@@ -1757,12 +1941,12 @@ mod tests {
             assert_eq!(vec.z, 9.0);
             assert_eq!(vec.w, 12.0);
         }
-        
+
         #[test]
         fn number_mul() {
             let vec1 = Vector4::new(3.0, 3.0, 3.0, 3.0);
 
-            let div = 3.0*vec1;
+            let div = 3.0 * vec1;
 
             assert_eq!(div.x, 9.0);
             assert_eq!(div.y, 9.0);
@@ -1779,7 +1963,7 @@ mod tests {
         fn div() {
             let vec = Vector4::new(3.0, 2.0, 44.0, 5.0);
 
-            let div = vec/2.0;
+            let div = vec / 2.0;
 
             assert_eq!(div.x, 1.5);
             assert_eq!(div.y, 1.0);
@@ -1796,7 +1980,7 @@ mod tests {
         fn div_by_zero() {
             let vec = Vector4::new(3.0, 2.0, 44.0, 5.0);
 
-            let div = vec/0.0;
+            let div = vec / 0.0;
 
             assert!(f32::is_nan(div.x));
             assert!(f32::is_nan(div.y));

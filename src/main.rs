@@ -1,11 +1,8 @@
 extern crate env_logger;
-extern crate zeus_render;
 extern crate zeus_core;
+extern crate zeus_render;
 
-use env_logger::{
-    Builder,
-    Target
-};
+use env_logger::{Builder, Target};
 
 use log::LevelFilter;
 

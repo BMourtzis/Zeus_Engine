@@ -1,17 +1,13 @@
+use super::{device::DeviceState, swapchain::SwapchainState};
 use gfx_hal::{
-    Backend,
     device::Device,
-    pass::{Attachment, SubpassDesc, AttachmentOps, AttachmentLoadOp::Clear, AttachmentStoreOp::Store},
-    image::Layout
+    image::Layout,
+    pass::{
+        Attachment, AttachmentLoadOp::Clear, AttachmentOps, AttachmentStoreOp::Store, SubpassDesc,
+    },
+    Backend,
 };
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
-use super::{
-    swapchain::SwapchainState,
-    device::DeviceState
-};
+use std::{cell::RefCell, rc::Rc};
 
 pub struct RenderPassState<B: Backend> {
     device: Rc<RefCell<DeviceState<B>>>,
@@ -19,14 +15,17 @@ pub struct RenderPassState<B: Backend> {
 }
 
 impl<B: Backend> RenderPassState<B> {
-    pub fn new(swapchain: &SwapchainState<B>, device: Rc<RefCell<DeviceState<B>>>) -> Self {
+    pub fn new(
+        swapchain: &SwapchainState<B>,
+        device: Rc<RefCell<DeviceState<B>>>,
+    ) -> Self {
         let render_pass = {
             let attachment = Attachment {
                 format: Some(swapchain.format),
                 samples: 1,
                 ops: AttachmentOps::new(Clear, Store),
                 stencil_ops: AttachmentOps::DONT_CARE,
-                layouts: Layout::Undefined .. Layout::Present
+                layouts: Layout::Undefined..Layout::Present,
             };
 
             let subpass = SubpassDesc {
@@ -34,18 +33,21 @@ impl<B: Backend> RenderPassState<B> {
                 depth_stencil: None,
                 inputs: &[],
                 resolves: &[],
-                preserves: &[]
+                preserves: &[],
             };
 
             unsafe {
-                device.borrow()
-                    .device.create_render_pass(&[attachment], &[subpass], &[])
-            }.ok()
+                device
+                    .borrow()
+                    .device
+                    .create_render_pass(&[attachment], &[subpass], &[])
+            }
+            .ok()
         };
 
         RenderPassState {
             render_pass,
-            device
+            device,
         }
     }
 }
