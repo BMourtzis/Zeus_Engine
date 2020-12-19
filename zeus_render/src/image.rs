@@ -13,11 +13,11 @@ use gfx_hal::{
     format::{AsFormat, Aspects, Rgba8Srgb, Swizzle},
     image::{
         Access, Extent, Filter, Kind, Layout, Offset, SamplerDesc, Size, SubresourceLayers, Tiling,
-        Usage, ViewCapabilities, ViewKind, WrapMode,
+        Usage, ViewCapabilities, ViewKind, WrapMode, Lod, PackedColor
     },
     memory::{Barrier, Dependencies, Properties},
     pool::CommandPool,
-    pso::{Descriptor, PipelineStage},
+    pso::{Descriptor, PipelineStage, Comparison},
     queue::CommandQueue,
     Backend,
 };
@@ -56,19 +56,17 @@ impl<B: Backend> ImageState<B> {
         let buffer = Some(buffer);
         let device = &mut device_state.device;
 
-        let kind = Kind::D2(dims.width as Size, dims.height as Size, 1, 1);
-
+        // let kind = Kind::D2(dims.width as Size, dims.height as Size, 1, 1);
         let mut image = unsafe {
             device.create_image(
-                kind,
+                Kind::D2(dims.width as Size, dims.height as Size, 1, 1),
                 1,
                 Rgba8Srgb::SELF,
                 Tiling::Optimal,
                 Usage::TRANSFER_DST | Usage::SAMPLED,
                 ViewCapabilities::empty(),
             )
-        }
-        .expect("Could not create image");
+        }.expect("Could not create image");
         let req = unsafe { device.get_image_requirements(&image) };
 
         let device_type = adapter
@@ -88,6 +86,8 @@ impl<B: Backend> ImageState<B> {
         unsafe { device.bind_image_memory(&memory, 0, &mut image) }
             .expect("Could not bind image memroy");
 
+        //Create Image View and Sampler.
+
         let image_view = unsafe {
             device.create_image_view(
                 &image,
@@ -96,12 +96,24 @@ impl<B: Backend> ImageState<B> {
                 Swizzle::NO,
                 COLOR_RANGE.clone(),
             )
-        }
-        .expect("Could not create image view");
-
-        let sampler =
-            unsafe { device.create_sampler(&SamplerDesc::new(Filter::Linear, WrapMode::Clamp)) }
-                .expect("Can't create sampler");
+        }.expect("Could not create image view");
+        
+        let sampler = unsafe { 
+            device.create_sampler(&SamplerDesc {
+                mag_filter: Filter::Linear,
+                min_filter: Filter::Linear,
+                mip_filter: Filter::Linear,
+                wrap_mode: (WrapMode::Clamp, WrapMode::Clamp, WrapMode::Clamp),
+                lod_bias: Lod(0.0_f32),
+                lod_range: Lod::RANGE,
+                //od_range: Lod(0.0_f32)..Lod(0.0_f32),
+                comparison: Some(Comparison::Always),
+                border: PackedColor(0_u32),
+                normalized: true,
+                //Anisotropy is not enabled in the current feature list
+                anisotropy_clamp: None,
+            })
+            }.expect("Can't create sampler");
 
         desc.write_to_state(
             vec![
@@ -124,7 +136,7 @@ impl<B: Backend> ImageState<B> {
 
         let transfered_image_fence = device.create_fence(false).expect("Can't create fence");
 
-        //copy buffer to texture
+        //Copy buffer to texture
         unsafe {
             let mut cmd_buffer = staging_pool.allocate_one(Level::Primary);
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);

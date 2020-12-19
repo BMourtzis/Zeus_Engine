@@ -4,7 +4,7 @@ use gfx_hal::{
     buffer::Usage,
     command::{BufferCopy, CommandBuffer, CommandBufferFlags, Level},
     device::Device,
-    memory::Properties,
+    memory::{Properties, Segment},
     pool::CommandPool,
     queue::CommandQueue,
     Backend,
@@ -132,7 +132,10 @@ impl<B: Backend> BufferState<B> {
             size = mem_reqs.size;
 
             //copy image data into staging buffer
-            let mapping = device.map_memory(&memory, 0..size).unwrap();
+            let mapping = device.map_memory(&memory, Segment {
+                offset: 0,
+                size: Some(size)
+            }).unwrap();
             for y in 0..height as usize {
                 let data_source_slice =
                     &(**img)[y * (width as usize) * stride..(y + 1) * (width as usize) * stride];
@@ -159,7 +162,7 @@ impl<B: Backend> BufferState<B> {
     }
 
     //TODO: Should add a separate struct for vertex buffers to do all the staging and expose the fence,
-    //like image struct
+    //like image state struct
 
     /// Creates new buffer for vertex data and copies the data with a staging buffer
     pub fn new_vertex_buffer<T>(
@@ -282,7 +285,10 @@ impl<B: Backend> BufferState<B> {
         let memory = self.memory.as_ref().unwrap();
 
         unsafe {
-            let mapping = device.map_memory(memory, offset..self.size).unwrap();
+            let mapping = device.map_memory(memory, Segment {
+                offset,
+                size: Some(self.size)
+            }).unwrap();
             ptr::copy_nonoverlapping(data_source.as_ptr() as *const u8, mapping, upload_size);
             device.unmap_memory(memory);
         }

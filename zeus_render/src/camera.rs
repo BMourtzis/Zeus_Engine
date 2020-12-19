@@ -1,9 +1,10 @@
 use gfx_hal::{
     adapter::MemoryType,
+    buffer::SubRange,
     device::Device,
     pso::{
         Descriptor, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,
-        DescriptorType, ShaderStageFlags,
+        DescriptorType, ShaderStageFlags, BufferDescriptorType, BufferDescriptorFormat
     },
     Backend,
 };
@@ -15,7 +16,7 @@ use super::{
     model::UniformBufferObject,
 };
 
-use zeus_core::math::matrix::Matrix4;
+use zeus_core::math::Matrix4;
 
 use std::{cell::RefCell, mem::size_of, rc::Rc};
 
@@ -40,7 +41,12 @@ impl<B: Backend> CameraState<B> {
             Rc::clone(&device),
             vec![DescriptorSetLayoutBinding {
                 binding,
-                ty: DescriptorType::UniformBuffer,
+                ty: DescriptorType::Buffer {
+                    ty: BufferDescriptorType::Uniform,
+                    format: BufferDescriptorFormat::Structured {
+                        dynamic_offset: false
+                    }
+                },
                 count: 1,
                 stage_flags: ShaderStageFlags::VERTEX,
                 immutable_samplers: false,
@@ -51,7 +57,12 @@ impl<B: Backend> CameraState<B> {
             device.borrow().device.create_descriptor_pool(
                 size,
                 &[DescriptorRangeDesc {
-                    ty: DescriptorType::UniformBuffer,
+                    ty: DescriptorType::Buffer {
+                        ty: BufferDescriptorType::Uniform,
+                        format: BufferDescriptorFormat::Structured {
+                            dynamic_offset: false
+                        }
+                    },
                     count: 1,
                 }],
                 DescriptorPoolCreateFlags::empty(),
@@ -83,7 +94,10 @@ impl<B: Backend> CameraState<B> {
                 array_offset: 0,
                 descriptors: Some(Descriptor::Buffer(
                     buf.as_ref().unwrap().get_buffer(),
-                    Some(0)..Some(size_of::<UniformBufferObject>() as u64),
+                    SubRange {
+                        offset: 0,
+                        size: Some(size_of::<UniformBufferObject>() as u64)
+                    }
                 )),
             });
         }
@@ -162,7 +176,7 @@ impl<B: Backend> CameraState<B> {
         &mut self,
         idx: usize,
     ) {
-        info!("ubo: {}", self.ubo.model);
+        debug!("ubo: {}", self.ubo.model);
 
         self.buffers[idx]
             .as_mut()

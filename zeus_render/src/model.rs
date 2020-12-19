@@ -5,7 +5,7 @@ use super::{
 };
 use gfx_hal::{
     adapter::MemoryType,
-    buffer::Usage,
+    buffer::{ SubRange, Usage},
     format::Format,
     memory::Properties,
     pso::{
@@ -15,7 +15,7 @@ use gfx_hal::{
 };
 use std::{cell::RefCell, mem::size_of, rc::Rc};
 
-use zeus_core::math::{matrix::Matrix4, vector::Vector2, vector::Vector3};
+use zeus_core::math::{Matrix4, Vector2, Vector3};
 
 pub struct Dimensions<T> {
     pub width: T,
@@ -61,7 +61,10 @@ impl<B: Backend> Uniform<B> {
                 array_offset: 0,
                 descriptors: Some(Descriptor::Buffer(
                     buffer.as_ref().unwrap().get_buffer(),
-                    None..None,
+                    SubRange {
+                        offset: 0,
+                        size: None
+                    }
                 )),
             }],
             &mut device.borrow_mut().device,
@@ -78,6 +81,8 @@ impl<B: Backend> Uniform<B> {
     }
 }
 
+//TODO: make a_uv a vector3
+//TODO: add texCoord
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
     pub a_pos: Vector3,

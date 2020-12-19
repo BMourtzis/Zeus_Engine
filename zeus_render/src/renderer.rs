@@ -20,11 +20,12 @@ use super::{
     pass::RenderPassState,
     pipeline::PipelineState,
     swapchain::SwapchainState,
+    error::NoLevelLoadedError
 };
 
 use crate::zeus_core::{
     input,
-    math::{matrix::Matrix4, vector::Vector2, vector::Vector3},
+    math::{Matrix4, Vector2, Vector3},
     time::Stopwatch,
 };
 
@@ -32,6 +33,7 @@ use std::{cell::RefCell, iter, rc::Rc};
 
 use winit::event::VirtualKeyCode;
 
+//TODO: handle unwraps
 pub struct RendererState<B: Backend> {
     swapchain: Option<SwapchainState<B>>,
     object: Option<RenderObject<B>>,
@@ -54,19 +56,20 @@ impl<B: Backend> RendererState<B> {
         info!("New renderer state!");
 
         let device = Rc::new(RefCell::new(DeviceState::new(
-            backend.adapter.adapter.take().unwrap(),
+            backend.adapter.adapter.take().expect("Backend Adapter is empty!"),
             &backend.surface,
         )));
 
         let mut swapchain = Some(SwapchainState::new(&mut backend, Rc::clone(&device)));
 
         let mut camera = CameraState::new(
-            swapchain.as_ref().unwrap().size as usize,
+            swapchain.as_ref()
+            .expect("Swapchain is empty!").size as usize,
             Rc::clone(&device),
             &backend.adapter.memory_types,
         );
 
-        let viewport = RendererState::create_viewport(swapchain.as_ref().unwrap());
+        let viewport = RendererState::create_viewport(swapchain.as_ref().expect("Swapchain is empty!"));
 
         camera.update_ubo(
             Matrix4::new().translate(0.0, 0.0, 0.0).rotate_y(180.0),
@@ -81,13 +84,14 @@ impl<B: Backend> RendererState<B> {
 
         camera.update_all_buffers();
 
-        let render_pass = RenderPassState::new(swapchain.as_ref().unwrap(), Rc::clone(&device));
+        let render_pass = RenderPassState::new(swapchain.as_ref().expect("Swapchain is empty!"), Rc::clone(&device));
 
         let framebuffer = unsafe {
             FramebufferState::new(
                 Rc::clone(&device),
                 &render_pass,
-                swapchain.as_mut().unwrap(),
+                swapchain.as_mut()
+                    .expect("Swapchain is empty!"),
             )
         };
 
@@ -117,7 +121,7 @@ impl<B: Backend> RendererState<B> {
         let object = RenderObject::new(
             Rc::clone(&self.device),
             &self.backend.adapter,
-            "./data/logo.png",
+            "./data/textures/logo.png",
             &VERTICES,
             &INDICES,
         );
@@ -134,7 +138,8 @@ impl<B: Backend> RendererState<B> {
 
     fn recreate_swapchain(&mut self) {
         debug!("Recreate Swapchain");
-        self.device.borrow().device.wait_idle().unwrap();
+        self.device.borrow().device.wait_idle()
+            .expect("Device is empty!");
 
         self.swapchain.take().unwrap();
 
@@ -144,25 +149,30 @@ impl<B: Backend> RendererState<B> {
         ));
 
         self.render_pass =
-            RenderPassState::new(self.swapchain.as_ref().unwrap(), Rc::clone(&self.device));
+            RenderPassState::new(self.swapchain.as_ref().expect("Swapchain is empty!"), Rc::clone(&self.device));
 
         self.framebuffer = unsafe {
             FramebufferState::new(
                 Rc::clone(&self.device),
                 &self.render_pass,
-                self.swapchain.as_mut().unwrap(),
+                self.swapchain.as_mut()
+                    .expect("Swapchain is empty!"),
             )
         };
 
         let mut layouts = Vec::new();
         self.camera.append_layout(&mut layouts);
         //NOTE: recreate swapchain is called only from draw after our check.
-        self.object.as_ref().unwrap().append_layout(&mut layouts);
+        self.object.as_ref()
+            .expect("Render Object is empty!")
+            .append_layout(&mut layouts);
 
         self.pipeline
-            .new_pipeline(layouts, self.render_pass.render_pass.as_ref().unwrap());
+            .new_pipeline(layouts, self.render_pass.render_pass.as_ref()
+            .expect("Render Pass is empty!"));
 
-        self.viewport = RendererState::create_viewport(self.swapchain.as_ref().unwrap());
+        self.viewport = RendererState::create_viewport(self.swapchain.as_ref()
+            .expect("Swapchain is empty!"));
     }
 
     fn create_viewport(swapchain: &SwapchainState<B>) -> Viewport {
@@ -177,16 +187,17 @@ impl<B: Backend> RendererState<B> {
         }
     }
 
-    pub fn draw(&mut self) {
+    pub fn draw(&mut self) -> Result<(), NoLevelLoadedError> {
         if self.pipeline.is_empty() {
-            error!("No Pipeline!\nPlease load the level");
-            return;
+            return Err(NoLevelLoadedError{
+                message: "No level is loaded!!/nPlease a level before you try to draw the scene".to_string()
+            })
         }
 
         //NOTE: hard frame cap at 120 frames
         if self.timer.check_delta() < 8 {
             debug!("Skipped Draw Call");
-            return;
+            return Ok(());
         }
 
         debug!("Drawing Frame");
@@ -207,8 +218,8 @@ impl<B: Backend> RendererState<B> {
             let (acquire_semaphore, _) = self
                 .framebuffer
                 .get_frame_data(None, Some(sem_index))
-                .1
-                .unwrap();
+                .sid
+                .expect("Semaphore Id is empty!");
 
             match self
                 .swapchain
@@ -222,7 +233,7 @@ impl<B: Backend> RendererState<B> {
                 Ok((i, _)) => i,
                 Err(_) => {
                     self.recreate_swapchain = true;
-                    return;
+                    return Ok(());
                 }
             }
         };
@@ -230,25 +241,25 @@ impl<B: Backend> RendererState<B> {
         //Updates
         self.call_updates(frame as usize);
 
-        let (fid, sid) = self
+        let framedata = self
             .framebuffer
             .get_frame_data(Some(frame as usize), Some(sem_index));
 
-        let (framebuffer_fence, framebuffer, command_pool, command_buffers) = fid.unwrap();
-        let (image_acquired, image_present) = sid.unwrap();
+        let (framebuffer_fence, framebuffer, command_pool, command_buffers) = framedata.fid.expect("Frame Id is empty!");
+        let (image_acquired, image_present) = framedata.sid.expect("Semaphore Id is empty!");
 
         unsafe {
             self.device
                 .borrow()
                 .device
                 .wait_for_fence(framebuffer_fence, !0)
-                .unwrap();
+                .expect("Fence await failed!");
 
             self.device
                 .borrow()
                 .device
                 .reset_fence(framebuffer_fence)
-                .unwrap();
+                .expect("Fence reset failed!");
 
             command_pool.reset(false);
 
@@ -256,9 +267,10 @@ impl<B: Backend> RendererState<B> {
                 Some(cmd_buffer) => cmd_buffer,
                 None => command_pool.allocate_one(Level::Primary),
             };
+
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
             cmd_buffer.begin_render_pass(
-                self.render_pass.render_pass.as_ref().unwrap(),
+                self.render_pass.render_pass.as_ref().expect("Render Pass is empty!"),
                 framebuffer,
                 self.viewport.rect,
                 &[ClearValue {
@@ -273,7 +285,7 @@ impl<B: Backend> RendererState<B> {
             cmd_buffer.set_scissors(0, &[self.viewport.rect]);
 
             //Bind graphics and buffers
-            cmd_buffer.bind_graphics_pipeline(self.pipeline.pipeline.as_ref().unwrap());
+            cmd_buffer.bind_graphics_pipeline(self.pipeline.pipeline.as_ref().expect("Pipeline is empty!"));
 
             self.object
                 .as_ref()
@@ -289,7 +301,7 @@ impl<B: Backend> RendererState<B> {
                 .append_desc_set(&mut desc_sets);
 
             cmd_buffer.bind_graphics_descriptor_sets(
-                self.pipeline.pipeline_layout.as_ref().unwrap(),
+                self.pipeline.pipeline_layout.as_ref().expect("Pipeline Layout is empty!"),
                 0,
                 desc_sets,
                 &[],
@@ -323,9 +335,10 @@ impl<B: Backend> RendererState<B> {
                 .is_err()
             {
                 self.recreate_swapchain = true;
-                return;
             }
         }
+
+        Ok(())
     }
 
     fn call_updates(
@@ -344,7 +357,7 @@ impl<B: Backend> RendererState<B> {
 
         let mut updated = false;
 
-        if input::get_btn(VirtualKeyCode::W) {
+        if input::is_btn_down(VirtualKeyCode::W) {
             updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
@@ -353,7 +366,7 @@ impl<B: Backend> RendererState<B> {
             ));
         }
 
-        if input::get_btn(VirtualKeyCode::S) {
+        if input::is_btn_down(VirtualKeyCode::S) {
             updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
@@ -362,7 +375,7 @@ impl<B: Backend> RendererState<B> {
             ));
         }
 
-        if input::get_btn(VirtualKeyCode::A) {
+        if input::is_btn_down(VirtualKeyCode::A) {
             updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 step * self.timer.get_delta_f64(),
@@ -371,7 +384,7 @@ impl<B: Backend> RendererState<B> {
             ));
         }
 
-        if input::get_btn(VirtualKeyCode::D) {
+        if input::is_btn_down(VirtualKeyCode::D) {
             updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 -step * self.timer.get_delta_f64(),
@@ -380,13 +393,13 @@ impl<B: Backend> RendererState<B> {
             ));
         }
 
-        if input::get_btn(VirtualKeyCode::Q) {
+        if input::is_btn_down(VirtualKeyCode::Q) {
             updated = true;
             self.camera
                 .update_model(Matrix4::new().rotate_y(0.1 * self.timer.get_delta_f64()));
         }
 
-        if input::get_btn(VirtualKeyCode::E) {
+        if input::is_btn_down(VirtualKeyCode::E) {
             updated = true;
             self.camera
                 .update_model(Matrix4::new().rotate_y(-0.1 * self.timer.get_delta_f64()));
@@ -398,79 +411,79 @@ impl<B: Backend> RendererState<B> {
     }
 
     fn update_colors(&mut self) {
-        if input::get_btn(VirtualKeyCode::Key0) {
+        if input::is_btn_down(VirtualKeyCode::Key0) {
             self.cur_value *= 10
         }
 
-        if input::get_btn(VirtualKeyCode::Key1) {
+        if input::is_btn_down(VirtualKeyCode::Key1) {
             self.cur_value = self.cur_value * 10 + 1
         }
 
-        if input::get_btn(VirtualKeyCode::Key2) {
+        if input::is_btn_down(VirtualKeyCode::Key2) {
             self.cur_value = self.cur_value * 10 + 2
         }
 
-        if input::get_btn(VirtualKeyCode::Key3) {
+        if input::is_btn_down(VirtualKeyCode::Key3) {
             self.cur_value = self.cur_value * 10 + 3
         }
 
-        if input::get_btn(VirtualKeyCode::Key4) {
+        if input::is_btn_down(VirtualKeyCode::Key4) {
             self.cur_value = self.cur_value * 10 + 4
         }
 
-        if input::get_btn(VirtualKeyCode::Key5) {
+        if input::is_btn_down(VirtualKeyCode::Key5) {
             self.cur_value = self.cur_value * 10 + 5
         }
 
-        if input::get_btn(VirtualKeyCode::Key6) {
+        if input::is_btn_down(VirtualKeyCode::Key6) {
             self.cur_value = self.cur_value * 10 + 6
         }
 
-        if input::get_btn(VirtualKeyCode::Key7) {
+        if input::is_btn_down(VirtualKeyCode::Key7) {
             self.cur_value = self.cur_value * 10 + 7
         }
 
-        if input::get_btn(VirtualKeyCode::Key8) {
+        if input::is_btn_down(VirtualKeyCode::Key8) {
             self.cur_value = self.cur_value * 10 + 8
         }
 
-        if input::get_btn(VirtualKeyCode::Key9) {
+        if input::is_btn_down(VirtualKeyCode::Key9) {
             self.cur_value = self.cur_value * 10 + 9
         }
 
-        if input::get_btn(VirtualKeyCode::R) {
+        if input::is_btn_down(VirtualKeyCode::R) {
             self.cur_value = 0;
             self.cur_color = Color::Red;
         }
 
-        if input::get_btn(VirtualKeyCode::G) {
+        if input::is_btn_down(VirtualKeyCode::G) {
             self.cur_value = 0;
             self.cur_color = Color::Green;
         }
 
-        if input::get_btn(VirtualKeyCode::B) {
+        if input::is_btn_down(VirtualKeyCode::B) {
             self.cur_value = 0;
             self.cur_color = Color::Blue;
         }
 
-        if input::get_btn(VirtualKeyCode::V) {
+        if input::is_btn_down(VirtualKeyCode::V) {
             self.cur_value = 0;
             self.cur_color = Color::Alpha;
         }
 
-        if input::get_btn(VirtualKeyCode::Return) {
+        if input::is_btn_down(VirtualKeyCode::Return) {
             self.update_uniform_buffer(self.cur_value as f32);
 
             self.cur_value = 0;
         }
 
-        if input::get_btn(VirtualKeyCode::C) {
+        if input::is_btn_down(VirtualKeyCode::C) {
             self.update_bg(self.cur_value as f32);
 
             self.cur_value = 0;
         }
 
-        if input::get_btn(VirtualKeyCode::Up) {
+        if input::is_btn_down(VirtualKeyCode::Up) {
             if self.cur_value < 255 {
                 self.cur_value += 1;
             }
@@ -478,7 +491,7 @@ impl<B: Backend> RendererState<B> {
             self.update_uniform_buffer(self.cur_value as f32);
         }
 
-        if input::get_btn(VirtualKeyCode::Down) {
+        if input::is_btn_down(VirtualKeyCode::Down) {
             if self.cur_value > 0 {
                 self.cur_value -= 1;
             }
@@ -486,7 +499,7 @@ impl<B: Backend> RendererState<B> {
             self.update_uniform_buffer(self.cur_value as f32);
         }
 
-        if input::get_btn(VirtualKeyCode::Right) {
+        if input::is_btn_down(VirtualKeyCode::Right) {
             if self.cur_value < 255 {
                 self.cur_value += 1;
             }
@@ -494,7 +507,7 @@ impl<B: Backend> RendererState<B> {
             self.update_bg(self.cur_value as f32);
         }
 
-        if input::get_btn(VirtualKeyCode::Left) {
+        if input::is_btn_down(VirtualKeyCode::Left) {
             if self.cur_value > 0 {
                 self.cur_value -= 1;
             }

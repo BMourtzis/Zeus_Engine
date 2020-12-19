@@ -4,7 +4,7 @@ use gfx_hal::{
     pso::{
         self, BlendState, ColorBlendDesc, ColorMask, EntryPoint, Face, FrontFace,
         GraphicsPipelineDesc, GraphicsShaderSet, PolygonMode, Primitive, Rasterizer,
-        ShaderStageFlags, Specialization,
+        ShaderStageFlags, Specialization, State
     },
     Backend,
 };
@@ -63,12 +63,12 @@ impl<B: Backend> PipelineState<B> {
         let pipeline = {
             let vs_module = create_shader_module::<B>(
                 &device,
-                "data/quad.vert",
+                "data/shaders/quad.vert",
                 glsl_to_spirv::ShaderType::Vertex,
             );
             let fs_module = create_shader_module::<B>(
                 &device,
-                "data/quad.frag",
+                "data/shaders/quad.frag",
                 glsl_to_spirv::ShaderType::Fragment,
             );
 
@@ -106,6 +106,7 @@ impl<B: Backend> PipelineState<B> {
                     depth_clamping: false,
                     depth_bias: Option::None,
                     conservative: false,
+                    line_width: State::Static(1.0)
                 };
 
                 let mut pipeline_desc = GraphicsPipelineDesc::new(

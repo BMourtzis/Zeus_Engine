@@ -5,7 +5,6 @@ use gfx_hal::{
     Backend,
 };
 
-//TODO: Not sure about make device pub
 pub struct DeviceState<B: Backend> {
     pub device: B::Device,
     pub physical_device: B::PhysicalDevice,

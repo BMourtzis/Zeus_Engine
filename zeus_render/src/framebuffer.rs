@@ -132,17 +132,9 @@ impl<B: Backend> FramebufferState<B> {
         &mut self,
         frame_id: Option<usize>,
         sem_index: Option<usize>,
-    ) -> (
-        Option<(
-            &mut B::Fence,
-            &mut B::Framebuffer,
-            &mut B::CommandPool,
-            &mut Vec<B::CommandBuffer>,
-        )>,
-        Option<(&mut B::Semaphore, &mut B::Semaphore)>,
-    ) {
-        (
-            if let Some(fid) = frame_id {
+    ) -> FrameData<B> {
+        FrameData {
+            fid: if let Some(fid) = frame_id {
                 Some((
                     &mut self.framebuffer_fences.as_mut().unwrap()[fid],
                     &mut self.framebuffers.as_mut().unwrap()[fid],
@@ -152,7 +144,7 @@ impl<B: Backend> FramebufferState<B> {
             } else {
                 None
             },
-            if let Some(sid) = sem_index {
+            sid: if let Some(sid) = sem_index {
                 Some((
                     &mut self.acquire_semaphores.as_mut().unwrap()[sid],
                     &mut self.present_semaphores.as_mut().unwrap()[sid],
@@ -160,7 +152,7 @@ impl<B: Backend> FramebufferState<B> {
             } else {
                 None
             },
-        )
+        }
     }
 }
 
@@ -204,16 +196,18 @@ impl<B: Backend> Drop for FramebufferState<B> {
     }
 }
 
-//TODO: move the frame data into this struct
-// pub struct FrameData<B> {
-//     sid: Option<(
-//         &mut B::Fence,
-//         &mut B::Framebuffer,
-//         &mut B::CommandPool,
-//         &mut Vec<B::CommandBuffer>
-//     )>,
-//     pid: Option<(
-//         &mut B::Semaphore,
-//         &mut B::Semaphore
-//     )>
-// }
+#[derive(Debug)]
+pub struct FrameData<'a, B: Backend> {
+    /// Frame Id
+    pub fid: Option<(
+        &'a mut B::Fence,
+        &'a mut B::Framebuffer,
+        &'a mut B::CommandPool,
+        &'a mut Vec<B::CommandBuffer>
+    )>,
+    /// Semaphore Id
+    pub sid: Option<(
+        &'a mut B::Semaphore,
+        &'a mut B::Semaphore
+    )>
+}

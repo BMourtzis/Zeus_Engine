@@ -24,6 +24,7 @@ mod pass;
 mod pipeline;
 mod renderer;
 mod swapchain;
+mod error;
 
 use winit::{
     dpi::LogicalSize,
@@ -51,10 +52,15 @@ pub fn render() {
 
     renderer_state.load_level();
 
-    renderer_state.draw();
+    match renderer_state.draw() {
+        Err(err) => {
+            error!("{}", err.message);
+            return;
+        },
+        Ok(_) => {}
+    }
 
     event_loop.run(move |event, _, control_flow| {
-        // *control_flow = ControlFlow::Wait;
 
         match event {
             Event::WindowEvent { event, .. } => match event {
@@ -91,7 +97,13 @@ pub fn render() {
             },
             Event::RedrawRequested(_) => {
                 debug!("RedrawRequested");
-                renderer_state.draw();
+                match renderer_state.draw() {
+                    Err(err) => {
+                        error!("{}", err.message);
+                        *control_flow = ControlFlow::Exit
+                    },
+                    Ok(_) => {}
+                }
             }
             Event::MainEventsCleared => {
                 renderer_state.backend.window.request_redraw();

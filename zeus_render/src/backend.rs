@@ -1,4 +1,3 @@
-//NOTE: For now we only use Vulkan until we can undestand the layout and design a architecture
 extern crate gfx_backend_vulkan as back;
 
 use super::adapter::AdapterState;

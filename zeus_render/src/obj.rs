@@ -1,11 +1,11 @@
 use gfx_hal::{
-    buffer::{IndexBufferView, Usage},
+    buffer::{IndexBufferView, Usage, SubRange},
     command::CommandBuffer,
     device::Device,
     pool::CommandPoolCreateFlags,
     pso::{
         ColorValue, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,
-        DescriptorType, ShaderStageFlags,
+        DescriptorType, ShaderStageFlags, ImageDescriptorType, BufferDescriptorType, BufferDescriptorFormat
     },
     Backend, IndexType,
 };
@@ -21,7 +21,7 @@ use super::{
 
 use std::{cell::RefCell, fs, io::Cursor, rc::Rc};
 
-const DEFAULT_TEXTURE: &[u8] = include_bytes!("../../data/error.png");
+const DEFAULT_TEXTURE: &[u8] = include_bytes!("../../data/textures/error.png");
 
 //TODO: Should separate to Geometry, Material, Texture
 //TODO: Should create pipeline as well
@@ -42,11 +42,13 @@ pub struct RenderObject<B: Backend> {
     index_buffer: Option<BufferState<B>>,
 }
 
+//TODO: add Some(Texture)
+//Texture = image path and type
 impl<B: Backend> RenderObject<B> {
     pub fn new(
         device: Rc<RefCell<DeviceState<B>>>,
         adapter: &AdapterState<B>,
-        image_path: &str,
+        texture_path: &str,
         vertices: &[Vertex],
         indices: &[u16],
     ) -> Self {
@@ -55,7 +57,11 @@ impl<B: Backend> RenderObject<B> {
             vec![
                 DescriptorSetLayoutBinding {
                     binding: 0,
-                    ty: DescriptorType::SampledImage,
+                    ty: DescriptorType::Image {
+                        ty: ImageDescriptorType::Sampled {
+                            with_sampler: false
+                        }
+                    },
                     count: 1,
                     stage_flags: ShaderStageFlags::FRAGMENT,
                     immutable_samplers: false,
@@ -74,7 +80,12 @@ impl<B: Backend> RenderObject<B> {
             Rc::clone(&device),
             vec![DescriptorSetLayoutBinding {
                 binding: 0,
-                ty: DescriptorType::UniformBuffer,
+                ty: DescriptorType::Buffer {
+                    ty: BufferDescriptorType::Uniform,
+                    format: BufferDescriptorFormat::Structured {
+                        dynamic_offset: false
+                    }
+                },
                 count: 1,
                 stage_flags: ShaderStageFlags::FRAGMENT,
                 immutable_samplers: false,
@@ -86,7 +97,11 @@ impl<B: Backend> RenderObject<B> {
                 1, //Number of sets
                 &[
                     DescriptorRangeDesc {
-                        ty: DescriptorType::SampledImage,
+                        ty: DescriptorType::Image {
+                            ty: ImageDescriptorType::Sampled {
+                                with_sampler: false
+                            }
+                        },
                         count: 1,
                     },
                     DescriptorRangeDesc {
@@ -103,7 +118,12 @@ impl<B: Backend> RenderObject<B> {
             device.borrow().device.create_descriptor_pool(
                 1,
                 &[DescriptorRangeDesc {
-                    ty: DescriptorType::UniformBuffer,
+                    ty: DescriptorType::Buffer {
+                        ty: BufferDescriptorType::Uniform,
+                        format: BufferDescriptorFormat::Structured {
+                            dynamic_offset: false
+                        }
+                    },
                     count: 1,
                 }],
                 DescriptorPoolCreateFlags::empty(),
@@ -122,7 +142,9 @@ impl<B: Backend> RenderObject<B> {
         let texture_desc = texture_desc.create_desc_set(texture_desc_pool.as_mut().unwrap());
         let color_desc = color_desc.create_desc_set(color_desc_pool.as_mut().unwrap());
 
-        let image_bytes = match fs::read(image_path) {
+        //IMAGE
+
+        let image_bytes = match fs::read(texture_path) {
             Ok(img) => img,
             Err(err) => {
                 error!("{:?}", err);
@@ -130,6 +152,7 @@ impl<B: Backend> RenderObject<B> {
             }
         };
 
+        //TODO: when loading textures we need to define file types
         let img = image::load(Cursor::new(&image_bytes[..]), image::PNG)
             .unwrap()
             .to_rgba();
@@ -142,6 +165,8 @@ impl<B: Backend> RenderObject<B> {
             &mut device.borrow_mut(),
             &mut staging_pool,
         );
+
+        //
 
         let vertex_buffer = BufferState::new_vertex_buffer(
             Rc::clone(&device),
@@ -277,11 +302,18 @@ impl<B: Backend> RenderObject<B> {
         cmd: &mut B::CommandBuffer,
         offset: u32,
     ) -> u32 {
-        cmd.bind_vertex_buffers(offset, Some((self.vertex_buffer.get_buffer(), 0)));
+        cmd.bind_vertex_buffers(
+            offset, 
+            Some((self.vertex_buffer.get_buffer(), SubRange::WHOLE))
+        );
+        
         if let Some(index_buffer) = &self.index_buffer {
             cmd.bind_index_buffer(IndexBufferView {
                 buffer: index_buffer.get_buffer(),
-                offset: 0, //TODO: what's the point of this offset?
+                range: SubRange {
+                    offset: 0,
+                    size: None
+                },
                 index_type: IndexType::U16,
             })
         }

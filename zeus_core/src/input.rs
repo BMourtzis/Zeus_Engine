@@ -16,8 +16,8 @@ pub fn update_btn(
     INPUT.lock().unwrap().update_btn(btn, state)
 }
 
-pub fn get_btn(btn: VirtualKeyCode) -> bool {
-    INPUT.lock().unwrap().get_btn(btn)
+pub fn is_btn_down(btn: VirtualKeyCode) -> bool {
+    INPUT.lock().unwrap().is_btn_down(btn)
 }
 
 struct InputManager {
@@ -43,7 +43,7 @@ impl InputManager {
         }
     }
 
-    pub fn get_btn(
+    pub fn is_btn_down(
         &self,
         btn: VirtualKeyCode,
     ) -> bool {
