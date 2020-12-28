@@ -13,9 +13,17 @@ use gfx_hal::{
     },
     Backend,
 };
-use std::{cell::RefCell, mem::size_of, rc::Rc};
+use std::{
+    cell::RefCell,
+    mem::size_of, rc::Rc
+};
 
-use zeus_core::math::{Matrix4, Vector2, Vector3};
+use zeus_core::math::{
+    Matrix4,
+    Vector2,
+    Vector3,
+    Vector4
+};
 
 pub struct Dimensions<T> {
     pub width: T,
@@ -77,15 +85,17 @@ impl<B: Backend> Uniform<B> {
     }
 
     pub fn get_layout(&self) -> &B::DescriptorSetLayout {
-        self.desc.as_ref().unwrap().get_layout()
+        self.desc.as_ref()
+            .unwrap().get_layout()
     }
 }
 
-//TODO: make a_uv a vector3
+//TODO: make a_uv a vector3. why? 3d models?
 //TODO: add texCoord
 #[derive(Debug, Clone, Copy)]
 pub struct Vertex {
     pub a_pos: Vector3,
+    pub a_color: Vector4,
     pub a_uv: Vector2,
 }
 
@@ -108,23 +118,31 @@ impl Vertex {
         }
     }
 
-    fn get_attribute_description() -> [AttributeDesc; 2] {
+    fn get_attribute_description() -> [AttributeDesc; 3] {
         [
             AttributeDesc {
-                location: 0,
                 binding: 0,
+                location: 0,
                 element: Element {
                     format: Format::Rgb32Sfloat,
                     offset: 0,
-                },
+                }
             },
             AttributeDesc {
-                location: 1,
                 binding: 0,
+                location: 1,
+                element: Element {
+                    format: Format::Rgba32Sfloat,
+                    offset: 12,
+                }
+            },
+            AttributeDesc {
+                binding: 0,
+                location: 2,
                 element: Element {
                     format: Format::Rg32Sfloat,
-                    offset: 12,
-                },
+                    offset: 28,
+                }
             },
         ]
     }

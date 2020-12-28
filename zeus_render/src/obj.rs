@@ -4,8 +4,7 @@ use gfx_hal::{
     device::Device,
     pool::CommandPoolCreateFlags,
     pso::{
-        ColorValue, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,
-        DescriptorType, ShaderStageFlags, ImageDescriptorType, BufferDescriptorType, BufferDescriptorFormat
+        ColorValue, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,DescriptorType, ShaderStageFlags, ImageDescriptorType, BufferDescriptorType, BufferDescriptorFormat
     },
     Backend, IndexType,
 };
@@ -111,8 +110,7 @@ impl<B: Backend> RenderObject<B> {
                 ],
                 DescriptorPoolCreateFlags::empty(),
             )
-        }
-        .ok();
+        }.ok();
 
         let mut color_desc_pool = unsafe {
             device.borrow().device.create_descriptor_pool(
@@ -128,22 +126,19 @@ impl<B: Backend> RenderObject<B> {
                 }],
                 DescriptorPoolCreateFlags::empty(),
             )
-        }
-        .ok();
+        }.ok();
 
         let mut staging_pool = unsafe {
             device.borrow().device.create_command_pool(
                 device.borrow().queues.family,
                 CommandPoolCreateFlags::empty(),
             )
-        }
-        .expect("Can't create Command Pool");
+        }.expect("Can't create Command Pool");
 
         let texture_desc = texture_desc.create_desc_set(texture_desc_pool.as_mut().unwrap());
         let color_desc = color_desc.create_desc_set(color_desc_pool.as_mut().unwrap());
 
         //IMAGE
-
         let image_bytes = match fs::read(texture_path) {
             Ok(img) => img,
             Err(err) => {
@@ -154,10 +149,9 @@ impl<B: Backend> RenderObject<B> {
 
         //TODO: when loading textures we need to define file types
         let img = image::load(Cursor::new(&image_bytes[..]), image::PNG)
-            .unwrap()
-            .to_rgba();
+            .unwrap().to_rgba();
 
-        let image = ImageState::new(
+        let image = ImageState::new_texture(
             texture_desc,
             &img,
             &adapter,
@@ -165,8 +159,6 @@ impl<B: Backend> RenderObject<B> {
             &mut device.borrow_mut(),
             &mut staging_pool,
         );
-
-        //
 
         let vertex_buffer = BufferState::new_vertex_buffer(
             Rc::clone(&device),
@@ -199,7 +191,8 @@ impl<B: Backend> RenderObject<B> {
         image.wait_for_transfer_completion();
 
         unsafe {
-            device.borrow().device.destroy_command_pool(staging_pool);
+            device.borrow().device
+                .destroy_command_pool(staging_pool);
         }
 
         RenderObject {
@@ -242,9 +235,7 @@ impl<B: Backend> RenderObject<B> {
 
         //Update Buffer
         self.color_uniform
-            .buffer
-            .as_mut()
-            .unwrap()
+            .buffer.as_mut().unwrap()
             .update_data(0, &self.color);
     }
 
@@ -254,14 +245,11 @@ impl<B: Backend> RenderObject<B> {
     #[allow(dead_code)]
     pub fn get_desc_set(&self) -> Vec<&B::DescriptorSet> {
         vec![
-            self.image.as_ref().unwrap().desc.set.as_ref().unwrap(),
+            self.image.as_ref().unwrap()
+                .desc.set.as_ref().unwrap(),
             self.color_uniform
-                .desc
-                .as_ref()
-                .unwrap()
-                .set
-                .as_ref()
-                .unwrap(),
+                .desc.as_ref().unwrap()
+                .set.as_ref().unwrap(),
         ]
     }
 
@@ -272,19 +260,16 @@ impl<B: Backend> RenderObject<B> {
         vec.push(self.image.as_ref().unwrap().desc.set.as_ref().unwrap());
         vec.push(
             self.color_uniform
-                .desc
-                .as_ref()
-                .unwrap()
-                .set
-                .as_ref()
-                .unwrap(),
+                .desc.as_ref().unwrap()
+                .set.as_ref().unwrap(),
         );
     }
 
     #[allow(dead_code)]
     pub fn get_layout(&self) -> Vec<&B::DescriptorSetLayout> {
         vec![
-            self.image.as_ref().unwrap().get_layout(),
+            self.image.as_ref().unwrap()
+                .get_layout(),
             self.color_uniform.get_layout(),
         ]
     }
@@ -326,14 +311,10 @@ impl<B: Backend> Drop for RenderObject<B> {
     fn drop(&mut self) {
         self.device.borrow().device.wait_idle().unwrap();
         unsafe {
-            self.device
-                .borrow()
-                .device
-                .destroy_descriptor_pool(self.texture_desc_pool.take().unwrap());
-            self.device
-                .borrow()
-                .device
-                .destroy_descriptor_pool(self.color_desc_pool.take().unwrap())
+            self.device.borrow()
+                .device.destroy_descriptor_pool(self.texture_desc_pool.take().unwrap());
+            self.device.borrow()
+                .device.destroy_descriptor_pool(self.color_desc_pool.take().unwrap());
         }
     }
 }

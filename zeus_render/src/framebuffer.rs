@@ -1,15 +1,30 @@
 use gfx_hal::{
     device::Device,
-    format::Swizzle,
+    format::{
+        Format, Swizzle, ImageFeature
+    },
     image::{Extent, ViewKind},
     pool::{CommandPool, CommandPoolCreateFlags},
+    pso::{
+        DescriptorSetLayoutBinding, DescriptorType, ImageDescriptorType, ShaderStageFlags, DescriptorRangeDesc, DescriptorPoolCreateFlags
+    },
     Backend,
 };
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    rc::Rc
+};
 
 use super::{
-    constants::COLOR_RANGE, device::DeviceState, pass::RenderPassState, swapchain::SwapchainState,
+    adapter::AdapterState,
+    constants::COLOR_RANGE,
+    desc::DescSetLayout,
+    device::DeviceState,
+    image::ImageState,
+    model::Dimensions,
+    pass::RenderPassState,
+    swapchain::SwapchainState,
 };
 
 pub struct FramebufferState<B: Backend> {
@@ -22,6 +37,10 @@ pub struct FramebufferState<B: Backend> {
     present_semaphores: Option<Vec<B::Semaphore>>,
     last_ref: usize,
     device: Rc<RefCell<DeviceState<B>>>,
+    //Depth Buffer
+    #[allow(dead_code)]
+    depth_buffer: Option<ImageState<B>>,
+    depth_desc_pool: Option<B::DescriptorPool>,
 }
 
 impl<B: Backend> FramebufferState<B> {
@@ -29,7 +48,87 @@ impl<B: Backend> FramebufferState<B> {
         device: Rc<RefCell<DeviceState<B>>>,
         render_pass: &RenderPassState<B>,
         swapchain: &mut SwapchainState<B>,
+        adapter: &AdapterState<B>
     ) -> Self {
+        
+        //DEPTH BUFFER
+        let depth_desc = DescSetLayout::new(
+            Rc::clone(&device),
+            vec![
+                DescriptorSetLayoutBinding {
+                    binding: 0,
+                    ty: DescriptorType::Image {
+                        ty:ImageDescriptorType::Sampled {
+                            with_sampler: false
+                        }
+                    },
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false,
+                },
+                DescriptorSetLayoutBinding {
+                    binding: 1,
+                    ty: DescriptorType::Sampler,
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false
+                }
+            ]
+        );
+
+        let mut depth_desc_pool = device.borrow().device.create_descriptor_pool(
+            1,
+            &[
+                DescriptorRangeDesc {
+                    ty: DescriptorType::Image {
+                        ty: ImageDescriptorType::Sampled {
+                            with_sampler: false
+                        }
+                    },
+                    count: 1
+                },
+                DescriptorRangeDesc {
+                    ty: DescriptorType::Sampler,
+                    count: 1
+                }
+            ],
+            DescriptorPoolCreateFlags::empty()
+        ).ok();
+
+        let depth_desc = depth_desc.create_desc_set(depth_desc_pool.as_mut().unwrap());
+
+        let properties = device.borrow()
+            .physical_device_format_properties(Some(Format::D32SfloatS8Uint));
+    
+        let stencil_support = properties.linear_tiling.contains(ImageFeature::DEPTH_STENCIL_ATTACHMENT) || properties.optimal_tiling.contains(ImageFeature::DEPTH_STENCIL_ATTACHMENT);
+
+        let dims = Dimensions { 
+            width: swapchain.extent.width as _,
+            height: swapchain.extent.height as _
+        };
+
+        let mut staging_pool = device.borrow().device.create_command_pool(
+            device.borrow().queues.family,
+            CommandPoolCreateFlags::empty(),
+        ).expect("Can't create Command Pool");
+
+        let depth_buffer = if stencil_support {
+            Some(ImageState::new_depth_image(
+                depth_desc,
+                dims,
+                &adapter,
+                &mut device.borrow_mut(),
+                &mut staging_pool
+            ))
+        } else {
+            None
+        };
+
+        if let Some(depth_buf) = depth_buffer.as_ref() {
+            depth_buf.wait_for_transfer_completion();
+        }
+        
+
         let (frame_images, framebuffers) = {
             let extent = Extent {
                 width: swapchain.extent.width as _,
@@ -38,40 +137,35 @@ impl<B: Backend> FramebufferState<B> {
             };
 
             let pairs = swapchain
-                .backbuffer
-                .take()
-                .unwrap()
-                .into_iter()
-                .map(|image| {
-                    let rtv = device
-                        .borrow()
-                        .device
-                        .create_image_view(
+                .backbuffer.take().unwrap()
+                .into_iter().map(|image| {
+                    let rtv = device.borrow()
+                        .device.create_image_view(
                             &image,
                             ViewKind::D2,
                             swapchain.format,
                             Swizzle::NO,
                             COLOR_RANGE.clone(),
-                        )
-                        .unwrap();
+                        ).unwrap();
                     (image, rtv)
-                })
-                .collect::<Vec<_>>();
+                }).collect::<Vec<_>>();
 
-            let fbos = pairs
-                .iter()
-                .map(|&(_, ref rtv)| {
-                    device
-                        .borrow()
-                        .device
+            let fbos = pairs.iter().map(|&(_, ref rtv)| {
+                    let attachments = if let Some(depth_img_v) = depth_buffer.as_ref().unwrap()
+                        .get_image_view() {
+                        vec![rtv, depth_img_v]
+                    } else {
+                        vec![rtv]
+                    };
+
+                    device.borrow().device
                         .create_framebuffer(
                             render_pass.render_pass.as_ref().unwrap(),
-                            Some(rtv),
+                            attachments,
                             extent,
-                        )
-                        .unwrap()
-                })
-                .collect();
+                        ).unwrap()
+                }).collect();
+
             (pairs, fbos)
         };
 
@@ -90,14 +184,11 @@ impl<B: Backend> FramebufferState<B> {
         for _ in 0..iter_count {
             fences.push(device.borrow().device.create_fence(true).unwrap());
             command_pools.push(
-                device
-                    .borrow()
-                    .device
-                    .create_command_pool(
+                device.borrow()
+                    .device.create_command_pool(
                         device.borrow().queues.family,
                         CommandPoolCreateFlags::empty(),
-                    )
-                    .expect("Can't create command pool"),
+                    ).expect("Can't create command pool"),
             );
             command_buffer_lists.push(Vec::new());
 
@@ -115,6 +206,8 @@ impl<B: Backend> FramebufferState<B> {
             acquire_semaphores: Some(acquire_semaphores),
             device,
             last_ref: 0,
+            depth_buffer,
+            depth_desc_pool
         }
     }
 
@@ -161,6 +254,9 @@ impl<B: Backend> Drop for FramebufferState<B> {
         let device = &self.device.borrow().device;
 
         unsafe {
+            self.device.borrow()
+                .device.destroy_descriptor_pool(self.depth_desc_pool.take().unwrap());
+
             for fence in self.framebuffer_fences.take().unwrap() {
                 device.wait_for_fence(&fence, !0).unwrap();
                 device.destroy_fence(fence);

@@ -11,6 +11,7 @@ use std::{borrow, cell::RefCell, rc::Rc};
 
 use super::device::DeviceState;
 
+#[derive(Debug)]
 pub struct DescSetLayout<B: Backend> {
     pub layout: Option<B::DescriptorSetLayout>,
     pub device: Rc<RefCell<DeviceState<B>>>,
@@ -22,12 +23,9 @@ impl<B: Backend> DescSetLayout<B> {
         binding: Vec<DescriptorSetLayoutBinding>,
     ) -> Self {
         let desc_set_layout = unsafe {
-            device
-                .borrow()
-                .device
-                .create_descriptor_set_layout(binding, &[])
-        }
-        .ok();
+            device.borrow()
+                .device.create_descriptor_set_layout(binding, &[])
+        }.ok();
 
         DescSetLayout {
             layout: desc_set_layout,
@@ -39,7 +37,9 @@ impl<B: Backend> DescSetLayout<B> {
         self,
         desc_pool: &mut B::DescriptorPool,
     ) -> DescSet<B> {
-        let desc_set = unsafe { desc_pool.allocate_set(self.layout.as_ref().unwrap()) }.unwrap();
+        let desc_set = unsafe { 
+            desc_pool.allocate_set(self.layout.as_ref().unwrap())
+        }.unwrap();
 
         DescSet {
             layout: self,
@@ -57,6 +57,7 @@ impl<B: Backend> Drop for DescSetLayout<B> {
     }
 }
 
+#[derive(Debug)]
 pub struct DescSet<B: Backend> {
     pub set: Option<B::DescriptorSet>,
     pub layout: DescSetLayout<B>,
@@ -72,21 +73,22 @@ impl<B: Backend> DescSet<B> {
         W::Item: borrow::Borrow<Descriptor<'a, B>>,
     {
         let set = self.set.as_ref().unwrap();
-        let write: Vec<_> = write
-            .into_iter()
+        let write: Vec<_> = write.into_iter()
             .map(|d| DescriptorSetWrite {
                 binding: d.binding,
                 array_offset: d.array_offset,
                 descriptors: d.descriptors,
                 set,
-            })
-            .collect();
+            }).collect();
 
-        unsafe { device.write_descriptor_sets(write) };
+        unsafe { 
+            device.write_descriptor_sets(write)
+        };
     }
 
     pub fn get_layout(&self) -> &B::DescriptorSetLayout {
-        self.layout.layout.as_ref().unwrap()
+        self.layout.layout.as_ref()
+            .unwrap()
     }
 }
 

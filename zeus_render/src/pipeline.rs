@@ -2,9 +2,7 @@ use gfx_hal::{
     device::Device,
     pass::Subpass,
     pso::{
-        self, BlendState, ColorBlendDesc, ColorMask, EntryPoint, Face, FrontFace,
-        GraphicsPipelineDesc, GraphicsShaderSet, PolygonMode, Primitive, Rasterizer,
-        ShaderStageFlags, Specialization, State
+        self, BlendState, ColorBlendDesc, ColorMask, Comparison, DepthStencilDesc, DepthTest, EntryPoint, Face, FrontFace, GraphicsPipelineDesc, GraphicsShaderSet, PolygonMode, Primitive, Rasterizer, ShaderStageFlags, Specialization, State
     },
     Backend,
 };
@@ -57,8 +55,7 @@ impl<B: Backend> PipelineState<B> {
         let device = &self.device.borrow().device;
         let pipeline_layout = unsafe {
             device.create_pipeline_layout(desc_layouts, &[(ShaderStageFlags::VERTEX, 0..8)])
-        }
-        .expect("Could not create pipeline layout");
+        }.expect("Could not create pipeline layout");
 
         let pipeline = {
             let vs_module = create_shader_module::<B>(
@@ -102,7 +99,7 @@ impl<B: Backend> PipelineState<B> {
                 let rasterizer = Rasterizer {
                     polygon_mode: PolygonMode::Fill,
                     cull_face: Face::empty(),
-                    front_face: FrontFace::Clockwise,
+                    front_face: FrontFace::CounterClockwise,
                     depth_clamping: false,
                     depth_bias: Option::None,
                     conservative: false,
@@ -121,6 +118,15 @@ impl<B: Backend> PipelineState<B> {
                     mask: ColorMask::ALL,
                     blend: Some(BlendState::ALPHA),
                 });
+
+                pipeline_desc.depth_stencil = DepthStencilDesc {
+                    depth: Some(DepthTest {
+                        fun: Comparison::Less,
+                        write: true
+                    }),
+                    depth_bounds: false,
+                    stencil: None
+                };
 
                 Vertex::inject_desc(&mut pipeline_desc);
 
@@ -161,10 +167,15 @@ fn create_shader_module<B: Backend>(
     shader_type: glsl_to_spirv::ShaderType,
 ) -> B::ShaderModule {
     //Read a shader file and compile it to SPIR-V
-    let glsl = fs::read_to_string(path).unwrap();
-    let file = glsl_to_spirv::compile(&glsl, shader_type).unwrap();
+    let glsl = fs::read_to_string(path)
+        .unwrap();
+    let file = glsl_to_spirv::compile(&glsl, shader_type)
+        .unwrap();
     //Read SPIR-V and create shader module
-    let spirv: Vec<u32> = pso::read_spirv(file).unwrap();
+    let spirv: Vec<u32> = pso::read_spirv(file)
+        .unwrap();
 
-    unsafe { device.create_shader_module(&spirv) }.unwrap()
+    unsafe { 
+        device.create_shader_module(&spirv)
+    }.unwrap()
 }

@@ -11,6 +11,7 @@ use gfx_hal::{
 };
 use std::{cell::RefCell, iter, mem::size_of, ptr, rc::Rc};
 
+#[derive(Debug)]
 pub struct BufferState<B: Backend> {
     memory: Option<B::Memory>,
     pub buffer: Option<B::Buffer>,
@@ -64,21 +65,22 @@ impl<B: Backend> BufferState<B> {
             let device = &device_ptr.borrow().device;
 
             //TODO: Can we set sharing mode?
-            buffer = device.create_buffer(upload_size as u64, usage).unwrap();
+            buffer = device.create_buffer(upload_size as u64, usage)
+                .unwrap();
             let mem_req = device.get_buffer_requirements(&buffer);
 
             let upload_type = memory_types
-                .iter()
-                .enumerate()
+                .iter().enumerate()
                 .position(|(id, mem_type)| {
                     mem_req.type_mask & (1 << id) != 0
                         && mem_type.properties.contains(memory_properties)
-                })
-                .unwrap()
+                }).unwrap()
                 .into();
 
-            memory = device.allocate_memory(upload_type, mem_req.size).unwrap();
-            device.bind_buffer_memory(&memory, 0, &mut buffer).unwrap();
+            memory = device.allocate_memory(upload_type, mem_req.size)
+                .unwrap();
+            device.bind_buffer_memory(&memory, 0, &mut buffer)
+                .unwrap();
             size = mem_req.size;
         }
 
@@ -111,31 +113,32 @@ impl<B: Backend> BufferState<B> {
         let size: u64;
 
         unsafe {
-            buffer = device.create_buffer(upload_size, usage).unwrap();
+            buffer = device.create_buffer(upload_size, usage)
+                .unwrap();
             let mem_reqs = device.get_buffer_requirements(&buffer);
 
             let upload_type = adapter
-                .memory_types
-                .iter()
-                .enumerate()
+                .memory_types.iter().enumerate()
                 .position(|(id, mem_type)| {
                     mem_reqs.type_mask & (1 << id) != 0
                         && mem_type
                             .properties
                             .contains(Properties::CPU_VISIBLE | Properties::COHERENT)
-                })
-                .unwrap()
+                }).unwrap()
                 .into();
 
-            memory = device.allocate_memory(upload_type, mem_reqs.size).unwrap();
-            device.bind_buffer_memory(&memory, 0, &mut buffer).unwrap();
+            memory = device.allocate_memory(upload_type, mem_reqs.size)
+                .unwrap();
+            device.bind_buffer_memory(&memory, 0, &mut buffer)
+                .unwrap();
             size = mem_reqs.size;
 
             //copy image data into staging buffer
             let mapping = device.map_memory(&memory, Segment {
                 offset: 0,
                 size: Some(size)
-            }).unwrap();
+            }).expect("Unable to map texture memory");
+            
             for y in 0..height as usize {
                 let data_source_slice =
                     &(**img)[y * (width as usize) * stride..(y + 1) * (width as usize) * stride];
@@ -282,7 +285,8 @@ impl<B: Backend> BufferState<B> {
         let upload_size = data_source.len() * stride;
 
         assert!(offset + upload_size as u64 <= self.size);
-        let memory = self.memory.as_ref().unwrap();
+        let memory = self.memory.as_ref()
+            .unwrap();
 
         unsafe {
             let mapping = device.map_memory(memory, Segment {
@@ -302,8 +306,7 @@ impl<B: Backend> BufferState<B> {
         staging_pool: &mut B::CommandPool,
     ) {
         let transfered_buffer_fence = device
-            .device
-            .create_fence(false)
+            .device.create_fence(false)
             .expect("Can't create fence");
 
         {
@@ -326,8 +329,7 @@ impl<B: Backend> BufferState<B> {
                 .submit_without_semaphores(iter::once(&cmd_buffer), Some(&transfered_buffer_fence));
         }
 
-        device
-            .device
+        device.device
             .wait_for_fence(&transfered_buffer_fence, !0)
             .unwrap();
     }

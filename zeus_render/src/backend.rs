@@ -1,9 +1,21 @@
 extern crate gfx_backend_vulkan as back;
 
-use super::adapter::AdapterState;
-use gfx_hal::{Backend, Instance};
-use std::{mem::ManuallyDrop, ptr};
-use winit::{dpi::PhysicalPosition, window::Window};
+use super::{
+    adapter::AdapterState,
+    constants::VERSION
+};
+use gfx_hal::{
+    Backend,
+    Instance
+};
+use std::{
+    mem::ManuallyDrop,
+    ptr
+};
+use winit::{
+    dpi::PhysicalPosition,
+    window::Window
+};
 
 pub struct BackendState<B: Backend> {
     instance: Option<B::Instance>,
@@ -28,16 +40,18 @@ pub fn create_backend(
     wb: winit::window::WindowBuilder,
     event_loop: &winit::event_loop::EventLoop<()>,
 ) -> BackendState<back::Backend> {
-    let window = wb.build(event_loop).unwrap();
+    let window = wb.build(event_loop)
+        .expect("Could not build window");
 
     window.set_outer_position(PhysicalPosition::new(1_300.0, 200.0));
+    window.set_cursor_visible(false);
 
     let instance =
-        back::Instance::create("Zeus Engine V0.0.1", 1).expect("Could not create instance");
+        back::Instance::create(&format!("Zeus Engine V{}", VERSION), 1)
+            .expect("Could not create instance");
 
     let surface = unsafe {
-        instance
-            .create_surface(&window)
+        instance.create_surface(&window)
             .expect("Could not create Surface")
     };
     let mut adapters = instance.enumerate_adapters();

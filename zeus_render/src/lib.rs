@@ -28,24 +28,32 @@ mod error;
 
 use winit::{
     dpi::LogicalSize,
-    event::{Event, KeyboardInput, VirtualKeyCode, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event::{
+        DeviceEvent, Event, KeyboardInput, VirtualKeyCode, WindowEvent
+    },
+    event_loop::{
+        ControlFlow, EventLoop
+    },
     window::WindowBuilder,
 };
 
-use self::{constants::DIMS, renderer::RendererState};
+use self::{
+    constants::{
+        DIMS, VERSION
+    }, 
+    renderer::RendererState
+};
 
 use zeus_core::input;
 
 pub fn render() {
-    info!("Starting up Zeus Engine V0.1.0");
+    info!("Starting up Zeus Engine V{}", VERSION);
 
     let event_loop = EventLoop::new();
     let window_builder = WindowBuilder::new()
         .with_min_inner_size(LogicalSize::new(1.0, 1.0))
         .with_inner_size(LogicalSize::new(DIMS.width, DIMS.height))
-        .with_title("Zeus Engine V0.1.0".to_string());
-
+        .with_title(format!("Zeus Engine V{}", VERSION).to_string());
     let backend = backend::create_backend(window_builder, &event_loop);
 
     let mut renderer_state = RendererState::new(backend);
@@ -61,7 +69,6 @@ pub fn render() {
     }
 
     event_loop.run(move |event, _, control_flow| {
-
         match event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::KeyboardInput {
@@ -74,25 +81,24 @@ pub fn render() {
                 }
                 | WindowEvent::CloseRequested => {
                     info!("Exiting Renderer!");
-                    *control_flow = ControlFlow::Exit
+                    *control_flow = ControlFlow::Exit;
                 }
-                WindowEvent::Resized(_dims) => {
-                    debug!("Resizing window to {}x{}", _dims.width, _dims.height);
-                    renderer_state.recreate_swapchain = true;
+                WindowEvent::Resized(dims) => {
+                    info!("Resizing window to {}x{}", dims.width, dims.height);
+                    renderer_state.update_window_dimensions(dims.width, dims.height);
                 }
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            virtual_keycode,
-                            state,
-                            ..
-                        },
+                    input: KeyboardInput {
+                        virtual_keycode,
+                        state,
+                        ..
+                    },
                     ..
                 } => {
                     if let Some(virtual_keycode) = virtual_keycode {
                         input::update_btn(virtual_keycode, state);
                     }
-                }
+                },
                 _ => (),
             },
             Event::RedrawRequested(_) => {
@@ -104,10 +110,19 @@ pub fn render() {
                     },
                     Ok(_) => {}
                 }
-            }
+            },
             Event::MainEventsCleared => {
                 renderer_state.backend.window.request_redraw();
                 debug!("EventsCleared");
+            },
+            Event::DeviceEvent{ event, ..} => match event {
+                DeviceEvent::MouseMotion{
+                    delta: (x, y)
+                } => {
+                    debug!("MouseMotion: x => {}, y => {}", x, y);
+                    renderer_state.update_camera_rotation(x, y)
+                },
+                _ => ()
             }
             _ => (),
         }

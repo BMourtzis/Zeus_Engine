@@ -1,6 +1,7 @@
 use gfx_hal::{
     adapter::{Adapter, MemoryType, PhysicalDevice},
-    Backend, Limits,
+    Backend,
+    Limits,
 };
 
 pub struct AdapterState<B: Backend> {

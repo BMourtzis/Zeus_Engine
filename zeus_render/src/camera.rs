@@ -3,22 +3,27 @@ use gfx_hal::{
     buffer::SubRange,
     device::Device,
     pso::{
-        Descriptor, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,
-        DescriptorType, ShaderStageFlags, BufferDescriptorType, BufferDescriptorFormat
+        Descriptor, DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding,DescriptorType, ShaderStageFlags, BufferDescriptorType, BufferDescriptorFormat
     },
     Backend,
 };
 
 use super::{
     buffer::BufferState,
-    desc::{DescSet, DescSetLayout, DescSetWrite},
+    desc::{
+        DescSet, DescSetLayout, DescSetWrite
+    },
     device::DeviceState,
     model::UniformBufferObject,
 };
 
 use zeus_core::math::Matrix4;
 
-use std::{cell::RefCell, mem::size_of, rc::Rc};
+use std::{
+    cell::RefCell,
+    mem::size_of,
+    rc::Rc
+};
 
 pub struct CameraState<B: Backend> {
     pub buffers: Vec<Option<BufferState<B>>>,
@@ -26,6 +31,7 @@ pub struct CameraState<B: Backend> {
     device: Rc<RefCell<DeviceState<B>>>,
     camera_desc_pool: Option<B::DescriptorPool>,
     ubo: UniformBufferObject,
+    has_updated_ubo: bool
 }
 
 impl<B: Backend> CameraState<B> {
@@ -67,14 +73,14 @@ impl<B: Backend> CameraState<B> {
                 }],
                 DescriptorPoolCreateFlags::empty(),
             )
-        }
-        .ok();
+        }.ok();
 
-        let mut camera_desc = camera_desc.create_desc_set(camera_desc_pool.as_mut().unwrap());
+        let mut camera_desc = camera_desc.create_desc_set(
+            camera_desc_pool.as_mut().unwrap()
+        );
 
         //Create buffers
         let mut buffers = Vec::default();
-
         for _i in 0..size {
             buffers.push(Some(
                 BufferState::new_uniform_buffer::<UniformBufferObject>(
@@ -87,7 +93,6 @@ impl<B: Backend> CameraState<B> {
 
         //Create desc set
         let mut desc_set_write = Vec::default();
-
         for buf in &buffers {
             desc_set_write.push(DescSetWrite {
                 binding,
@@ -112,6 +117,7 @@ impl<B: Backend> CameraState<B> {
             device,
             camera_desc_pool,
             ubo,
+            has_updated_ubo: false
         }
     }
 
@@ -132,6 +138,8 @@ impl<B: Backend> CameraState<B> {
 
         self.ubo.view = view;
         self.ubo.proj = proj;
+
+        self.has_updated_ubo = true;
     }
 
     #[allow(dead_code)]
@@ -144,6 +152,7 @@ impl<B: Backend> CameraState<B> {
         update: Matrix4,
     ) {
         self.ubo.model = update * self.ubo.model;
+        self.has_updated_ubo = true;
     }
 
     #[allow(dead_code)]
@@ -157,6 +166,7 @@ impl<B: Backend> CameraState<B> {
         update: Matrix4,
     ) {
         self.ubo.view = update * self.ubo.view;
+        self.has_updated_ubo = true;
     }
 
     #[allow(dead_code)]
@@ -165,28 +175,31 @@ impl<B: Backend> CameraState<B> {
     }
 
     #[allow(dead_code)]
-    pub fn update_proj(
-        &mut self,
-        update: Matrix4,
-    ) {
+    pub fn update_proj(&mut self, update: Matrix4) {
         self.ubo.proj = update * self.ubo.proj;
+        self.has_updated_ubo = true;
     }
-    //Updates specific buffer with the new data.
-    pub fn update_buffer(
-        &mut self,
-        idx: usize,
-    ) {
-        debug!("ubo: {}", self.ubo.model);
 
-        self.buffers[idx]
-            .as_mut()
-            .unwrap()
-            .update_data(0, &[self.ubo]);
+    pub fn set_proj(&mut self, update: Matrix4) {
+        self.ubo.proj = update;
+        self.has_updated_ubo = true;
+    }
+
+    //Updates specific buffer with the new data.
+    pub fn update_buffer(&mut self, idx: usize,) {
+        if self.has_updated_ubo {
+            debug!("ubo: {}", self.ubo.model);
+
+            self.buffers[idx].as_mut().unwrap()
+                .update_data(0, &[self.ubo]);
+        }
     }
 
     pub fn update_all_buffers(&mut self) {
-        for buffer in self.buffers.iter_mut() {
-            buffer.as_mut().unwrap().update_data(0, &[self.ubo]);
+        if self.has_updated_ubo {
+            for buffer in self.buffers.iter_mut() {
+                buffer.as_mut().unwrap().update_data(0, &[self.ubo]);
+            }
         }
     }
 

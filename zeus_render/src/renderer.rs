@@ -1,18 +1,19 @@
 extern crate gfx_backend_vulkan as back;
 
 use gfx_hal::{
-    command::{ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, Level, SubpassContents},
+    command::{ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, ClearDepthStencil, Level, SubpassContents},
     device::Device,
     pool::CommandPool,
     pso::{ColorValue, PipelineStage, Rect, Viewport},
     queue::{CommandQueue, Submission},
-    window::{SwapImageIndex, Swapchain},
+    window::{SwapImageIndex, Swapchain, Extent2D },
     Backend,
 };
 
 use super::{
     backend::BackendState,
     camera::CameraState,
+    constants::DIMS,
     device::DeviceState,
     framebuffer::FramebufferState,
     model::{Color, Vertex},
@@ -25,7 +26,7 @@ use super::{
 
 use crate::zeus_core::{
     input,
-    math::{Matrix4, Vector2, Vector3},
+    math::{Matrix4, Vector2, Vector3, Vector4},
     time::Stopwatch,
 };
 
@@ -33,7 +34,6 @@ use std::{cell::RefCell, iter, rc::Rc};
 
 use winit::event::VirtualKeyCode;
 
-//TODO: handle unwraps
 pub struct RendererState<B: Backend> {
     swapchain: Option<SwapchainState<B>>,
     object: Option<RenderObject<B>>,
@@ -45,10 +45,12 @@ pub struct RendererState<B: Backend> {
     viewport: Viewport,
     timer: Stopwatch,
     camera: CameraState<B>,
+    window_dimensions: Extent2D,
     pub recreate_swapchain: bool,
     bg_color: ColorValue,
     cur_color: Color,
     cur_value: u32,
+    // scene_desc_sets: Vec<&B::DescriptorSet>
 }
 
 impl<B: Backend> RendererState<B> {
@@ -60,7 +62,16 @@ impl<B: Backend> RendererState<B> {
             &backend.surface,
         )));
 
-        let mut swapchain = Some(SwapchainState::new(&mut backend, Rc::clone(&device)));
+        let window_dimensions = Extent2D {
+            width: DIMS.width,
+            height: DIMS.height
+        };
+
+        let mut swapchain = Some(SwapchainState::new(
+            &mut backend,
+            Rc::clone(&device),
+            window_dimensions
+        ));
 
         let mut camera = CameraState::new(
             swapchain.as_ref()
@@ -92,6 +103,7 @@ impl<B: Backend> RendererState<B> {
                 &render_pass,
                 swapchain.as_mut()
                     .expect("Swapchain is empty!"),
+                &backend.adapter
             )
         };
 
@@ -108,6 +120,7 @@ impl<B: Backend> RendererState<B> {
             viewport,
             timer: Stopwatch::new(),
             camera,
+            window_dimensions,
             recreate_swapchain: true,
             bg_color: [0.1, 0.1, 0.1, 1.0],
             cur_color: Color::Red,
@@ -130,10 +143,14 @@ impl<B: Backend> RendererState<B> {
         self.camera.append_layout(&mut layouts);
         object.append_layout(&mut layouts);
 
-        self.pipeline
-            .new_pipeline(layouts, self.render_pass.render_pass.as_ref().unwrap());
+        self.pipeline.new_pipeline(
+            layouts,
+            self.render_pass.render_pass.as_ref().unwrap()
+        );
 
         self.object = Some(object);
+
+        self.recreate_swapchain();
     }
 
     fn recreate_swapchain(&mut self) {
@@ -146,10 +163,14 @@ impl<B: Backend> RendererState<B> {
         self.swapchain = Some(SwapchainState::new(
             &mut self.backend,
             Rc::clone(&self.device),
+            self.window_dimensions
         ));
 
-        self.render_pass =
-            RenderPassState::new(self.swapchain.as_ref().expect("Swapchain is empty!"), Rc::clone(&self.device));
+        self.render_pass = RenderPassState::new(
+            self.swapchain.as_ref()
+                .expect("Swapchain is empty!"),
+            Rc::clone(&self.device)
+        );
 
         self.framebuffer = unsafe {
             FramebufferState::new(
@@ -157,6 +178,7 @@ impl<B: Backend> RendererState<B> {
                 &self.render_pass,
                 self.swapchain.as_mut()
                     .expect("Swapchain is empty!"),
+                &self.backend.adapter
             )
         };
 
@@ -167,12 +189,16 @@ impl<B: Backend> RendererState<B> {
             .expect("Render Object is empty!")
             .append_layout(&mut layouts);
 
-        self.pipeline
-            .new_pipeline(layouts, self.render_pass.render_pass.as_ref()
-            .expect("Render Pass is empty!"));
+        self.pipeline.new_pipeline(
+            layouts,
+            self.render_pass.render_pass.as_ref()
+                .expect("Render Pass is empty!")
+        );
 
-        self.viewport = RendererState::create_viewport(self.swapchain.as_ref()
-            .expect("Swapchain is empty!"));
+        self.viewport = RendererState::create_viewport(
+            self.swapchain.as_ref()
+                .expect("Swapchain is empty!")
+        );
     }
 
     fn create_viewport(swapchain: &SwapchainState<B>) -> Viewport {
@@ -183,7 +209,7 @@ impl<B: Backend> RendererState<B> {
                 w: swapchain.extent.width as i16,
                 h: swapchain.extent.height as i16,
             },
-            depth: 0.0..10.0,
+            depth: -1.0 .. 1.0,
         }
     }
 
@@ -194,8 +220,8 @@ impl<B: Backend> RendererState<B> {
             })
         }
 
-        //NOTE: hard frame cap at 120 frames
-        if self.timer.check_delta() < 8 {
+        //NOTE: hard frame cap at 1000 frames
+        if self.timer.check_delta() < 1 {
             debug!("Skipped Draw Call");
             return Ok(());
         }
@@ -216,18 +242,12 @@ impl<B: Backend> RendererState<B> {
 
         let frame: SwapImageIndex = unsafe {
             let (acquire_semaphore, _) = self
-                .framebuffer
-                .get_frame_data(None, Some(sem_index))
-                .sid
-                .expect("Semaphore Id is empty!");
+                .framebuffer.get_frame_data(None, Some(sem_index))
+                .sid.expect("Semaphore Id is empty!");
 
             match self
-                .swapchain
-                .as_mut()
-                .unwrap()
-                .swapchain
-                .as_mut()
-                .unwrap()
+                .swapchain.as_mut().unwrap()
+                .swapchain.as_mut().unwrap()
                 .acquire_image(!0, Some(acquire_semaphore), None)
             {
                 Ok((i, _)) => i,
@@ -239,26 +259,26 @@ impl<B: Backend> RendererState<B> {
         };
 
         //Updates
-        self.call_updates(frame as usize);
+        self.call_updates();
+        self.camera.update_buffer(frame as usize);
 
-        let framedata = self
-            .framebuffer
-            .get_frame_data(Some(frame as usize), Some(sem_index));
+        let framedata = self.framebuffer.get_frame_data(
+            Some(frame as usize),
+            Some(sem_index)
+        );
 
-        let (framebuffer_fence, framebuffer, command_pool, command_buffers) = framedata.fid.expect("Frame Id is empty!");
-        let (image_acquired, image_present) = framedata.sid.expect("Semaphore Id is empty!");
+        let (framebuffer_fence, framebuffer, command_pool, command_buffers) = framedata.fid
+            .expect("Frame Id is empty!");
+        let (image_acquired, image_present) = framedata.sid
+            .expect("Semaphore Id is empty!");
 
         unsafe {
-            self.device
-                .borrow()
-                .device
-                .wait_for_fence(framebuffer_fence, !0)
+            self.device.borrow()
+                .device.wait_for_fence(framebuffer_fence, !0)
                 .expect("Fence await failed!");
 
-            self.device
-                .borrow()
-                .device
-                .reset_fence(framebuffer_fence)
+            self.device.borrow()
+                .device.reset_fence(framebuffer_fence)
                 .expect("Fence reset failed!");
 
             command_pool.reset(false);
@@ -270,13 +290,19 @@ impl<B: Backend> RendererState<B> {
 
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
             cmd_buffer.begin_render_pass(
-                self.render_pass.render_pass.as_ref().expect("Render Pass is empty!"),
+                self.render_pass.render_pass.as_ref()
+                    .expect("Render Pass is empty!"),
                 framebuffer,
                 self.viewport.rect,
                 &[ClearValue {
                     color: ClearColor {
                         float32: self.bg_color,
                     },
+                }, ClearValue {
+                    depth_stencil: ClearDepthStencil {
+                        depth: 1.0_f32,
+                        stencil: 0_u32
+                    }
                 }],
                 SubpassContents::Inline,
             );
@@ -285,19 +311,18 @@ impl<B: Backend> RendererState<B> {
             cmd_buffer.set_scissors(0, &[self.viewport.rect]);
 
             //Bind graphics and buffers
-            cmd_buffer.bind_graphics_pipeline(self.pipeline.pipeline.as_ref().expect("Pipeline is empty!"));
+            cmd_buffer.bind_graphics_pipeline(
+                self.pipeline.pipeline.as_ref()
+                    .expect("Pipeline is empty!")
+            );
 
-            self.object
-                .as_ref()
-                .unwrap()
+            self.object.as_ref().unwrap()
                 .bind_buffers(&mut cmd_buffer, 0);
 
             //TODO: Possible improvement, should save this item and update when needed.
             let mut desc_sets = Vec::new();
             self.camera.append_desc_set(&mut desc_sets);
-            self.object
-                .as_ref()
-                .unwrap()
+            self.object.as_ref().unwrap()
                 .append_desc_set(&mut desc_sets);
 
             cmd_buffer.bind_graphics_descriptor_sets(
@@ -307,7 +332,7 @@ impl<B: Backend> RendererState<B> {
                 &[],
             );
 
-            cmd_buffer.draw_indexed(0..6, 0, 0..1);
+            cmd_buffer.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
             cmd_buffer.end_render_pass();
             cmd_buffer.finish();
 
@@ -321,18 +346,13 @@ impl<B: Backend> RendererState<B> {
             command_buffers.push(cmd_buffer);
 
             if self
-                .swapchain
-                .as_ref()
-                .unwrap()
-                .swapchain
-                .as_ref()
-                .unwrap()
+                .swapchain.as_ref().unwrap()
+                .swapchain.as_ref().unwrap()
                 .present(
                     &mut self.device.borrow_mut().queues.queues[0],
                     frame,
                     Some(&*image_present),
-                )
-                .is_err()
+                ).is_err()
             {
                 self.recreate_swapchain = true;
             }
@@ -341,24 +361,36 @@ impl<B: Backend> RendererState<B> {
         Ok(())
     }
 
-    fn call_updates(
-        &mut self,
-        frame: usize,
-    ) {
-        self.update_camera(frame);
+    pub fn update_window_dimensions(&mut self, width: u32, height: u32) {
+        self.window_dimensions = Extent2D {
+            width,
+            height
+        };
+
+        self.recreate_swapchain = true;
+    }
+
+    //TODO: Need to update the 
+    // pub fn update_fov(&mut self, delta: f32) {
+    //     let step = 0.05_f32;
+
+    //     // self.camera.update_proj(Matrix4::perspective(
+    //     //     i * step * self.timer.get_delta_f64(),
+    //     //     (self.viewport.rect.w / self.viewport.rect.h) as f32,
+    //     //     0.1,
+    //     //     1000.0,
+    //     // ));
+    // }
+
+    fn call_updates(&mut self) {
+        self.update_camera();
         self.update_colors();
     }
 
-    fn update_camera(
-        &mut self,
-        frame: usize,
-    ) {
-        let step = 0.01_f32;
-
-        let mut updated = false;
+    fn update_camera(&mut self) {
+        let step = 0.005_f32;
 
         if input::is_btn_down(VirtualKeyCode::W) {
-            updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
                 0.0,
@@ -367,7 +399,6 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::S) {
-            updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
                 0.0,
@@ -376,7 +407,6 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::A) {
-            updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 step * self.timer.get_delta_f64(),
                 0.0,
@@ -385,7 +415,6 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::D) {
-            updated = true;
             self.camera.update_model(Matrix4::new().translate(
                 -step * self.timer.get_delta_f64(),
                 0.0,
@@ -394,21 +423,45 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::Q) {
-            updated = true;
             self.camera
                 .update_model(Matrix4::new().rotate_y(0.1 * self.timer.get_delta_f64()));
         }
 
         if input::is_btn_down(VirtualKeyCode::E) {
-            updated = true;
             self.camera
                 .update_model(Matrix4::new().rotate_y(-0.1 * self.timer.get_delta_f64()));
         }
 
-        if updated {
-            self.camera.update_buffer(frame);
+        if input::is_btn_down(VirtualKeyCode::J) {
+            self.camera.set_proj(Matrix4::perspective(
+                90.0_f32.to_radians(),
+                (self.viewport.rect.w / self.viewport.rect.h) as f32,
+                0.1,
+                1000.0,
+            ));
+        }
+
+        if input::is_btn_down(VirtualKeyCode::K) {
+            self.camera.set_proj(Matrix4::perspective(
+                120.0_f32.to_radians(),
+                (self.viewport.rect.w / self.viewport.rect.h) as f32,
+                0.1,
+                1000.0,
+            ));
         }
     }
+
+    pub fn update_camera_rotation(&mut self, x: f64, _y: f64) {
+        let step = 0.5_f32;
+
+        self.camera
+            .update_model(Matrix4::new().rotate_y(x as f32 * -1.0 * step * self.timer.get_delta_f64()));
+
+        //NOTE: Removed for now as gimbal lock makes things weird
+        // self.camera
+        //     .update_model(Matrix4::new().rotate_x(y as f32 * step * self.timer.get_delta_f64()));
+    }
+
 
     fn update_colors(&mut self) {
         if input::is_btn_down(VirtualKeyCode::Key0) {
@@ -520,9 +573,7 @@ impl<B: Backend> RendererState<B> {
         &mut self,
         value: f32,
     ) {
-        self.object
-            .as_mut()
-            .unwrap()
+        self.object.as_mut().unwrap()
             .update_color(&self.cur_color, value);
     }
 
@@ -543,44 +594,57 @@ impl<B: Backend> RendererState<B> {
 
 impl<B: Backend> Drop for RendererState<B> {
     fn drop(&mut self) {
-        self.device.borrow().device.wait_idle().unwrap();
+        self.device.borrow()
+            .device.wait_idle().unwrap();
         self.swapchain.take();
     }
 }
 
-const VERTICES: [Vertex; 4] = [
+const VERTICES: [Vertex; 8] = [
     Vertex {
-        a_pos: Vector3 {
-            x: 0.5,
-            y: -0.33,
-            z: 2.5,
-        },
+        a_pos: Vector3 { x: 0.5, y: -0.33, z: 2.5 },
+        a_color: Vector4 { x: 1.0, y: 0.0, z: 0.0, w: 1.0 },
         a_uv: Vector2 { x: 0.0, y: 1.0 },
     },
     Vertex {
-        a_pos: Vector3 {
-            x: -0.5,
-            y: -0.33,
-            z: 2.5,
-        },
+        a_pos: Vector3 { x: -0.5, y: -0.33, z: 2.5 },
+        a_color: Vector4 {x: 0.0, y: 1.0, z: 0.0, w: 1.0 },
         a_uv: Vector2 { x: 1.0, y: 1.0 },
     },
     Vertex {
-        a_pos: Vector3 {
-            x: -0.5,
-            y: 0.33,
-            z: 2.5,
-        },
+        a_pos: Vector3 { x: -0.5, y: 0.33, z: 2.5 },
+        a_color: Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 1.0 },
         a_uv: Vector2 { x: 1.0, y: 0.0 },
     },
     Vertex {
-        a_pos: Vector3 {
-            x: 0.5,
-            y: 0.33,
-            z: 2.5,
-        },
+        a_pos: Vector3 { x: 0.5, y: 0.33, z: 2.5 },
+        a_color: Vector4 {x: 1.0, y: 1.0, z: 1.0, w: 1.0 },
+        a_uv: Vector2 { x: 0.0, y: 0.0 },
+    },
+
+    Vertex {
+        a_pos: Vector3 { x: 1.5, y: -0.33, z: 3.5 },
+        a_color: Vector4 {x: 1.0, y: 0.0, z: 0.0, w: 1.0 },
+        a_uv: Vector2 { x: 0.0, y: 1.0 },
+    },
+    Vertex {
+        a_pos: Vector3 { x: 0.5, y: -0.33, z: 3.5 },
+        a_color: Vector4 {x: 0.0, y: 1.0, z: 0.0, w: 1.0 },
+        a_uv: Vector2 { x: 1.0, y: 1.0 },
+    },
+    Vertex {
+        a_pos: Vector3 { x: 0.5, y: 0.33, z: 3.5 },
+        a_color: Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 1.0 },
+        a_uv: Vector2 { x: 1.0, y: 0.0 },
+    },
+    Vertex {
+        a_pos: Vector3 { x: 1.5, y: 0.33, z: 3.5 },
+        a_color: Vector4 {x: 1.0, y: 1.0, z: 1.0, w: 1.0 },
         a_uv: Vector2 { x: 0.0, y: 0.0 },
     },
 ];
 
-const INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
+const INDICES: [u16; 12] = [
+    0, 1, 2, 2, 3, 0, //obj 1
+    4, 5, 6, 6, 7, 4 //obj 2
+];
