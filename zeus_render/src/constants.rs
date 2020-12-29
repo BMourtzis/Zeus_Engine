@@ -1,4 +1,8 @@
-use gfx_hal::{format::Aspects, image::SubresourceRange, window::Extent2D};
+use gfx_hal::{
+    format::Aspects,
+    image::SubresourceRange,
+    window::Extent2D
+};
 
 pub const VERSION: &str = "0.1.1";
 
@@ -9,12 +13,16 @@ pub const DIMS: Extent2D = Extent2D {
 
 pub const COLOR_RANGE: SubresourceRange = SubresourceRange {
     aspects: Aspects::COLOR,
-    levels: 0..1,
-    layers: 0..1,
+    level_start: 0,
+    level_count: Some(1),
+    layer_start: 0,
+    layer_count: Some(1)
 };
 
 pub const DEPTH_RANGE: SubresourceRange = SubresourceRange {
     aspects: Aspects::DEPTH,
-    levels: 0..1,
-    layers: 0..1
+    level_start: 0,
+    level_count: Some(1),
+    layer_start: 0,
+    layer_count: Some(1)
 };

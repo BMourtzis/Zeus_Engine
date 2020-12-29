@@ -21,7 +21,7 @@ zeus_render = { path = "zeus_render", version = "0.1.0"}
 # zeus_physics = { path = "zeus_physics", version = "0.1.0", optional = true}
 log = "0.4"
 env_logger = "0.7"
-winit = "0.21.0"
+winit = "0.24.0"
 
 # [dev-dependencies]
 # env_logger = "0.7"

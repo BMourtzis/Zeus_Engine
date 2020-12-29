@@ -2,14 +2,22 @@ use gfx_hal::{
     device::Device,
     pass::Subpass,
     pso::{
-        self, BlendState, ColorBlendDesc, ColorMask, Comparison, DepthStencilDesc, DepthTest, EntryPoint, Face, FrontFace, GraphicsPipelineDesc, GraphicsShaderSet, PolygonMode, Primitive, Rasterizer, ShaderStageFlags, Specialization, State
+        self, BlendState, ColorBlendDesc, ColorMask, Comparison, DepthStencilDesc, DepthTest, EntryPoint, Face, FrontFace, GraphicsPipelineDesc, InputAssemblerDesc, PolygonMode, Primitive, Rasterizer, ShaderStageFlags, Specialization, State
     },
     Backend,
 };
 
-use std::{borrow, cell::RefCell, fs, rc::Rc};
+use std::{
+    borrow,
+    cell::RefCell,
+    fs,
+    rc::Rc
+};
 
-use super::{device::DeviceState, model::Vertex};
+use super::{
+    device::DeviceState,
+    model::Vertex
+};
 
 const ENTRY_NAME: &str = "main";
 
@@ -28,7 +36,7 @@ impl<B: Backend> PipelineState<B> {
     ) -> Self
     where
         IS: IntoIterator,
-        IS::Item: borrow::Borrow<B::DescriptorSetLayout>,
+        IS::Item: borrow::Borrow<B::DescriptorSetLayout>, <IS as IntoIterator>::IntoIter: ExactSizeIterator
     {
         let mut pipeline = Self::empty(Rc::clone(&device_ptr));
         pipeline.new_pipeline(desc_layouts, &render_pass);
@@ -50,11 +58,14 @@ impl<B: Backend> PipelineState<B> {
         render_pass: &B::RenderPass,
     ) where
         IS: IntoIterator,
-        IS::Item: borrow::Borrow<B::DescriptorSetLayout>,
+        IS::Item: borrow::Borrow<B::DescriptorSetLayout>, <IS as IntoIterator>::IntoIter: ExactSizeIterator
     {
         let device = &self.device.borrow().device;
         let pipeline_layout = unsafe {
-            device.create_pipeline_layout(desc_layouts, &[(ShaderStageFlags::VERTEX, 0..8)])
+            device.create_pipeline_layout(
+                desc_layouts,
+                &[(ShaderStageFlags::VERTEX, 0..8)]
+            )
         }.expect("Could not create pipeline layout");
 
         let pipeline = {
@@ -83,14 +94,6 @@ impl<B: Backend> PipelineState<B> {
                     },
                 );
 
-                let shader_entries = GraphicsShaderSet {
-                    vertex: vs_entry,
-                    hull: None,
-                    domain: None,
-                    geometry: None,
-                    fragment: Some(fs_entry),
-                };
-
                 let subpass = Subpass {
                     index: 0,
                     main_pass: render_pass,
@@ -106,10 +109,24 @@ impl<B: Backend> PipelineState<B> {
                     line_width: State::Static(1.0)
                 };
 
+                let buffers = &Vertex::get_vertex_buffer_description();
+                let attributes = &Vertex::get_attribute_description();
+
                 let mut pipeline_desc = GraphicsPipelineDesc::new(
-                    shader_entries,
-                    Primitive::TriangleList,
+                    pso::PrimitiveAssemblerDesc::Vertex{
+                        buffers,
+                        attributes,
+                        input_assembler: InputAssemblerDesc {
+                            primitive: Primitive::TriangleList,
+                            with_adjacency: false,
+                            restart_index: None
+                        },
+                        vertex: vs_entry,
+                        geometry: None,
+                        tessellation: None
+                    },
                     rasterizer,
+                    Some(fs_entry),
                     &pipeline_layout,
                     subpass,
                 );
@@ -127,8 +144,6 @@ impl<B: Backend> PipelineState<B> {
                     depth_bounds: false,
                     stencil: None
                 };
-
-                Vertex::inject_desc(&mut pipeline_desc);
 
                 unsafe { device.create_graphics_pipeline(&pipeline_desc, None) }
                     .expect("Could not create graphics pipeline")
@@ -172,7 +187,8 @@ fn create_shader_module<B: Backend>(
     let file = glsl_to_spirv::compile(&glsl, shader_type)
         .unwrap();
     //Read SPIR-V and create shader module
-    let spirv: Vec<u32> = pso::read_spirv(file)
+    //TOOD: part of auxil crate now
+    let spirv: Vec<u32> = gfx_auxil::read_spirv(file)
         .unwrap();
 
     unsafe { 

@@ -1,41 +1,59 @@
 extern crate gfx_backend_vulkan as back;
 
 use gfx_hal::{
-    command::{ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, ClearDepthStencil, Level, SubpassContents},
+    command::{
+        ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, ClearDepthStencil, Level, SubpassContents
+    },
     device::Device,
+    format::Format,
     pool::CommandPool,
-    pso::{ColorValue, PipelineStage, Rect, Viewport},
-    queue::{CommandQueue, Submission},
-    window::{SwapImageIndex, Swapchain, Extent2D },
+    pso::{
+        ColorValue, Rect, Viewport
+    },
+    queue::{
+        CommandQueue, Submission
+    },
+    window::{
+        Extent2D, PresentationSurface
+    },
     Backend,
 };
 
 use super::{
     backend::BackendState,
+    buffer::DepthBuffer,
     camera::CameraState,
     constants::DIMS,
     device::DeviceState,
+    error::NoLevelLoadedError,
     framebuffer::FramebufferState,
-    model::{Color, Vertex},
+    model::{
+        Color, Vertex, Dimensions
+    },
     obj::RenderObject,
     pass::RenderPassState,
     pipeline::PipelineState,
     swapchain::SwapchainState,
-    error::NoLevelLoadedError
 };
 
 use crate::zeus_core::{
     input,
-    math::{Matrix4, Vector2, Vector3, Vector4},
+    math::{
+        Matrix4, Vector2, Vector3, Vector4
+    },
     time::Stopwatch,
 };
 
-use std::{cell::RefCell, iter, rc::Rc};
+use std::{
+    cell::RefCell,
+    iter,
+    rc::Rc
+};
 
 use winit::event::VirtualKeyCode;
 
 pub struct RendererState<B: Backend> {
-    swapchain: Option<SwapchainState<B>>,
+    swapchain: SwapchainState<B>,
     object: Option<RenderObject<B>>,
     device: Rc<RefCell<DeviceState<B>>>,
     pub backend: BackendState<B>,
@@ -50,7 +68,7 @@ pub struct RendererState<B: Backend> {
     bg_color: ColorValue,
     cur_color: Color,
     cur_value: u32,
-    // scene_desc_sets: Vec<&B::DescriptorSet>
+    depth_buffer: Option<DepthBuffer<B>>
 }
 
 impl<B: Backend> RendererState<B> {
@@ -67,20 +85,19 @@ impl<B: Backend> RendererState<B> {
             height: DIMS.height
         };
 
-        let mut swapchain = Some(SwapchainState::new(
+        let swapchain = SwapchainState::new(
             &mut backend,
             Rc::clone(&device),
             window_dimensions
-        ));
+        );
 
         let mut camera = CameraState::new(
-            swapchain.as_ref()
-            .expect("Swapchain is empty!").size as usize,
+            swapchain.size as usize,
             Rc::clone(&device),
             &backend.adapter.memory_types,
         );
 
-        let viewport = RendererState::create_viewport(swapchain.as_ref().expect("Swapchain is empty!"));
+        let viewport = RendererState::create_viewport(&swapchain);
 
         camera.update_ubo(
             Matrix4::new().translate(0.0, 0.0, 0.0).rotate_y(180.0),
@@ -95,15 +112,25 @@ impl<B: Backend> RendererState<B> {
 
         camera.update_all_buffers();
 
-        let render_pass = RenderPassState::new(swapchain.as_ref().expect("Swapchain is empty!"), Rc::clone(&device));
+        let render_pass = RenderPassState::new(&swapchain, Rc::clone(&device));
+
+        let depth_buffer = if DepthBuffer::stencil_support(Rc::clone(&device), Format::D32SfloatS8Uint) {
+            Some(DepthBuffer::new(
+                Rc::clone(&device),
+                &backend.adapter,
+                Dimensions {
+                    width: window_dimensions.width,
+                    height: window_dimensions.height
+                }
+            ))
+        } else {
+            None
+        };
 
         let framebuffer = unsafe {
             FramebufferState::new(
                 Rc::clone(&device),
-                &render_pass,
-                swapchain.as_mut()
-                    .expect("Swapchain is empty!"),
-                &backend.adapter
+                swapchain.size,
             )
         };
 
@@ -125,6 +152,7 @@ impl<B: Backend> RendererState<B> {
             bg_color: [0.1, 0.1, 0.1, 1.0],
             cur_color: Color::Red,
             cur_value: 0,
+            depth_buffer
         }
     }
 
@@ -158,27 +186,34 @@ impl<B: Backend> RendererState<B> {
         self.device.borrow().device.wait_idle()
             .expect("Device is empty!");
 
-        self.swapchain.take().unwrap();
-
-        self.swapchain = Some(SwapchainState::new(
+        self.swapchain = SwapchainState::new(
             &mut self.backend,
             Rc::clone(&self.device),
             self.window_dimensions
-        ));
+        );
 
         self.render_pass = RenderPassState::new(
-            self.swapchain.as_ref()
-                .expect("Swapchain is empty!"),
+            &self.swapchain,
             Rc::clone(&self.device)
         );
+
+        self.depth_buffer = if DepthBuffer::stencil_support(Rc::clone(&self.device), Format::D32SfloatS8Uint) {
+            Some(DepthBuffer::new(
+                Rc::clone(&self.device),
+                &self.backend.adapter,
+                Dimensions {
+                    width: self.window_dimensions.width,
+                    height: self.window_dimensions.height
+                }
+            ))
+        } else {
+            None
+        };
 
         self.framebuffer = unsafe {
             FramebufferState::new(
                 Rc::clone(&self.device),
-                &self.render_pass,
-                self.swapchain.as_mut()
-                    .expect("Swapchain is empty!"),
-                &self.backend.adapter
+                self.swapchain.size
             )
         };
 
@@ -196,8 +231,7 @@ impl<B: Backend> RendererState<B> {
         );
 
         self.viewport = RendererState::create_viewport(
-            self.swapchain.as_ref()
-                .expect("Swapchain is empty!")
+            &self.swapchain
         );
     }
 
@@ -237,62 +271,62 @@ impl<B: Backend> RendererState<B> {
         //Get Delta
         self.timer.update_time();
 
-        //Get Frame index
-        let sem_index = self.framebuffer.next_acq_pre_pair_index();
-
-        let frame: SwapImageIndex = unsafe {
-            let (acquire_semaphore, _) = self
-                .framebuffer.get_frame_data(None, Some(sem_index))
-                .sid.expect("Semaphore Id is empty!");
-
-            match self
-                .swapchain.as_mut().unwrap()
-                .swapchain.as_mut().unwrap()
-                .acquire_image(!0, Some(acquire_semaphore), None)
-            {
+        let surface_image = unsafe {
+            match self.backend.surface.acquire_image(!0) {
                 Ok((i, _)) => i,
                 Err(_) => {
                     self.recreate_swapchain = true;
-                    return Ok(());
+                    return Ok(())
                 }
             }
         };
+        
+        let attachments = vec![
+            std::borrow::Borrow::borrow(&surface_image),
+            self.depth_buffer.as_ref().unwrap()
+                .depth_buffer.get_image_view().as_ref().unwrap()
+        ];
+
+        let framebuffer = unsafe {
+            self.device.borrow()
+                .device.create_framebuffer(
+                    self.render_pass.render_pass.as_ref().unwrap(),
+                    attachments,
+                    self.swapchain.extent
+                ).expect("Could not create framebuffer")
+        };
+
+        let frame_idx = (self.swapchain.frame_index % self.swapchain.size) as usize;
+        self.swapchain.frame_index += 1;
 
         //Updates
         self.call_updates();
-        self.camera.update_buffer(frame as usize);
+        self.camera.update_buffer(frame_idx);
 
-        let framedata = self.framebuffer.get_frame_data(
-            Some(frame as usize),
-            Some(sem_index)
-        );
-
-        let (framebuffer_fence, framebuffer, command_pool, command_buffers) = framedata.fid
-            .expect("Frame Id is empty!");
-        let (image_acquired, image_present) = framedata.sid
-            .expect("Semaphore Id is empty!");
+        let framedata = self.framebuffer.get_frame_data(frame_idx);
 
         unsafe {
-            self.device.borrow()
-                .device.wait_for_fence(framebuffer_fence, !0)
-                .expect("Fence await failed!");
+            framedata.cmd_pool.reset(false);
 
-            self.device.borrow()
-                .device.reset_fence(framebuffer_fence)
-                .expect("Fence reset failed!");
-
-            command_pool.reset(false);
-
-            let mut cmd_buffer = match command_buffers.pop() {
+            let mut cmd_buffer = match framedata.cmd_buffers.pop() {
                 Some(cmd_buffer) => cmd_buffer,
-                None => command_pool.allocate_one(Level::Primary),
+                None => framedata.cmd_pool.allocate_one(Level::Primary),
             };
 
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
+            cmd_buffer.begin_debug_marker("setup", 0);
+            cmd_buffer.set_viewports(0, &[self.viewport.clone()]);
+            cmd_buffer.set_scissors(0, &[self.viewport.rect]);
+            cmd_buffer.bind_graphics_pipeline(
+                self.pipeline.pipeline.as_ref()
+                    .expect("Pipeline is empty!")
+            );
+            cmd_buffer.end_debug_marker();
+
             cmd_buffer.begin_render_pass(
                 self.render_pass.render_pass.as_ref()
                     .expect("Render Pass is empty!"),
-                framebuffer,
+                &framebuffer,
                 self.viewport.rect,
                 &[ClearValue {
                     color: ClearColor {
@@ -305,15 +339,6 @@ impl<B: Backend> RendererState<B> {
                     }
                 }],
                 SubpassContents::Inline,
-            );
-
-            cmd_buffer.set_viewports(0, &[self.viewport.clone()]);
-            cmd_buffer.set_scissors(0, &[self.viewport.rect]);
-
-            //Bind graphics and buffers
-            cmd_buffer.bind_graphics_pipeline(
-                self.pipeline.pipeline.as_ref()
-                    .expect("Pipeline is empty!")
             );
 
             self.object.as_ref().unwrap()
@@ -334,28 +359,28 @@ impl<B: Backend> RendererState<B> {
 
             cmd_buffer.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
             cmd_buffer.end_render_pass();
+            cmd_buffer.insert_debug_marker("done", 0);
             cmd_buffer.finish();
 
             let submission = Submission {
                 command_buffers: iter::once(&cmd_buffer),
-                wait_semaphores: iter::once((&*image_acquired, PipelineStage::BOTTOM_OF_PIPE)),
-                signal_semaphores: iter::once(&*image_present),
+                wait_semaphores: None,
+                signal_semaphores: iter::once(&*framedata.present_sem),
             };
 
-            self.device.borrow_mut().queues.queues[0].submit(submission, Some(framebuffer_fence));
-            command_buffers.push(cmd_buffer);
+            self.device.borrow_mut().queues.queues[0].submit(submission, None);
+            framedata.cmd_buffers.push(cmd_buffer);
 
-            if self
-                .swapchain.as_ref().unwrap()
-                .swapchain.as_ref().unwrap()
-                .present(
-                    &mut self.device.borrow_mut().queues.queues[0],
-                    frame,
-                    Some(&*image_present),
-                ).is_err()
-            {
+            //present frame
+            if let Err(_) = self.device.borrow_mut().queues.queues[0].present(
+                &mut *self.backend.surface,
+                surface_image,
+                Some(framedata.present_sem)
+            ) {
                 self.recreate_swapchain = true;
             }
+
+            self.device.borrow().device.destroy_framebuffer(framebuffer);
         }
 
         Ok(())
@@ -596,7 +621,6 @@ impl<B: Backend> Drop for RendererState<B> {
     fn drop(&mut self) {
         self.device.borrow()
             .device.wait_idle().unwrap();
-        self.swapchain.take();
     }
 }
 

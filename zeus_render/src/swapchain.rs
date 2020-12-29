@@ -1,8 +1,7 @@
 use gfx_hal::{
-    device::Device,
-    format::{ChannelType, Format},
+    format::{ ChannelType, Format },
     image::Extent,
-    window::{PresentMode, Surface, SwapchainConfig, Extent2D},
+    window::{PresentMode, PresentationSurface, Surface, SwapchainConfig, Extent2D},
     Backend,
 };
 
@@ -11,12 +10,12 @@ use std::{cell::RefCell, rc::Rc};
 use super::{backend::BackendState, device::DeviceState};
 
 pub struct SwapchainState<B: Backend> {
+    #[allow(dead_code)]
     device: Rc<RefCell<DeviceState<B>>>,
-    pub swapchain: Option<B::Swapchain>,
-    pub backbuffer: Option<Vec<B::Image>>,
     pub extent: Extent,
     pub format: Format,
     pub size: u32,
+    pub frame_index: u32
 }
 
 impl<B: Backend> SwapchainState<B> {
@@ -50,32 +49,31 @@ impl<B: Backend> SwapchainState<B> {
         let size = swap_config.image_count;
 
         let extent = swap_config.extent.to_extent();
-        let (swapchain, backbuffer) = unsafe {
-            device.borrow()
-                .device.create_swapchain(
-                    &mut backend.surface,
-                    swap_config,
-                    None
-                )
+        let frame_index = swap_config.image_count;
+        
+        unsafe {
+            backend.surface.configure_swapchain(
+                &device.borrow().device,
+                swap_config
+            )
         }.expect("Could not create swapchain");
 
         SwapchainState {
-            swapchain: Some(swapchain),
-            backbuffer: Some(backbuffer),
             device,
             extent,
             format,
             size,
+            frame_index
         }
     }
 }
 
 impl<B: Backend> Drop for SwapchainState<B> {
     fn drop(&mut self) {
-        unsafe {
-            self.device
-                .borrow().device
-                .destroy_swapchain(self.swapchain.take().unwrap());
-        }
+        // unsafe {
+        //     self.device
+        //         .borrow().device
+        //         .destroy_swapchain(self.swapchain.take().unwrap());
+        // }
     }
 }

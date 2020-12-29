@@ -15,7 +15,11 @@ use super::{
     desc::DescSetLayout,
     device::DeviceState,
     image::ImageState,
-    model::{Color, Uniform, Vertex},
+    model::{
+        Color,
+        Uniform,
+        Vertex
+    },
 };
 
 use std::{cell::RefCell, fs, io::Cursor, rc::Rc};

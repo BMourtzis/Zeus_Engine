@@ -7,4 +7,4 @@ edition = "2018"
 [dependencies]
 log = "0.4"
 lazy_static = "1.4.0"
-winit = "0.21.0"
+winit = "0.24.0"

@@ -9,7 +9,7 @@ use gfx_hal::{
     format::Format,
     memory::Properties,
     pso::{
-        AttributeDesc, Descriptor, Element, GraphicsPipelineDesc, VertexBufferDesc, VertexInputRate,
+        AttributeDesc, Descriptor, Element, VertexBufferDesc, VertexInputRate,
     },
     Backend,
 };
@@ -100,25 +100,17 @@ pub struct Vertex {
 }
 
 impl Vertex {
-    pub fn inject_desc<B: Backend>(pipeline_desc: &mut GraphicsPipelineDesc<B>) {
-        pipeline_desc
-            .vertex_buffers
-            .push(Self::get_vertex_buffer_description());
-
-        pipeline_desc
-            .attributes
-            .extend(Self::get_attribute_description().iter());
+    pub fn get_vertex_buffer_description() -> [VertexBufferDesc; 1] {
+        [
+            VertexBufferDesc {
+                binding: 0,
+                stride: size_of::<Self>() as u32,
+                rate: VertexInputRate::Vertex,
+            }
+        ]
     }
 
-    fn get_vertex_buffer_description() -> VertexBufferDesc {
-        VertexBufferDesc {
-            binding: 0,
-            stride: size_of::<Self>() as u32,
-            rate: VertexInputRate::Vertex,
-        }
-    }
-
-    fn get_attribute_description() -> [AttributeDesc; 3] {
+    pub fn get_attribute_description() -> [AttributeDesc; 3] {
         [
             AttributeDesc {
                 binding: 0,

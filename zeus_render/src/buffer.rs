@@ -1,15 +1,41 @@
-use super::{adapter::AdapterState, device::DeviceState, model::Dimensions};
+use super::{
+    adapter::AdapterState,
+    desc::DescSetLayout,
+    device::DeviceState,
+    image::ImageState,
+    model::Dimensions
+};
+
 use gfx_hal::{
     adapter::MemoryType,
     buffer::Usage,
-    command::{BufferCopy, CommandBuffer, CommandBufferFlags, Level},
+    command::{
+        BufferCopy, CommandBuffer, CommandBufferFlags, Level
+    },
     device::Device,
-    memory::{Properties, Segment},
-    pool::CommandPool,
+    format::{
+        Format, ImageFeature
+    },
+    memory::{
+        Properties, Segment
+    },
+    pool::{
+        CommandPool, CommandPoolCreateFlags
+    },
+    pso::{
+        DescriptorPoolCreateFlags, DescriptorRangeDesc, DescriptorSetLayoutBinding, DescriptorType, ImageDescriptorType, ShaderStageFlags
+    },
     queue::CommandQueue,
     Backend,
 };
-use std::{cell::RefCell, iter, mem::size_of, ptr, rc::Rc};
+
+use std::{
+    cell::RefCell,
+    iter,
+    mem::size_of,
+    ptr,
+    rc::Rc
+};
 
 #[derive(Debug)]
 pub struct BufferState<B: Backend> {
@@ -342,5 +368,96 @@ impl<B: Backend> Drop for BufferState<B> {
             device.destroy_buffer(self.buffer.take().unwrap());
             device.free_memory(self.memory.take().unwrap());
         }
+    }
+}
+
+pub struct DepthBuffer<B: Backend> {
+    pub depth_buffer: ImageState<B>,
+    #[allow(dead_code)]
+    depth_desc_pool: Option<B::DescriptorPool>,
+}
+
+impl<B: Backend> DepthBuffer<B> {
+    pub fn new(
+        device: Rc<RefCell<DeviceState<B>>>,
+        adapter: &AdapterState<B>,
+        dims: Dimensions<u32>
+    ) -> Self {
+        let depth_desc = DescSetLayout::new(
+            Rc::clone(&device),
+            vec![
+                DescriptorSetLayoutBinding {
+                    binding: 0,
+                    ty: DescriptorType::Image {
+                        ty:ImageDescriptorType::Sampled {
+                            with_sampler: false
+                        }
+                    },
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false,
+                },
+                DescriptorSetLayoutBinding {
+                    binding: 1,
+                    ty: DescriptorType::Sampler,
+                    count: 1,
+                    stage_flags: ShaderStageFlags::FRAGMENT,
+                    immutable_samplers: false
+                }
+            ]
+        );
+
+        let mut depth_desc_pool = unsafe {
+            device.borrow().device.create_descriptor_pool(
+                1,
+                &[
+                    DescriptorRangeDesc {
+                        ty: DescriptorType::Image {
+                            ty: ImageDescriptorType::Sampled {
+                                with_sampler: false
+                            }
+                        },
+                        count: 1
+                    },
+                    DescriptorRangeDesc {
+                        ty: DescriptorType::Sampler,
+                        count: 1
+                    }
+                ],
+                DescriptorPoolCreateFlags::empty()
+            )
+        }.ok();
+
+        let depth_desc = depth_desc.create_desc_set(depth_desc_pool.as_mut().unwrap());
+
+        let mut staging_pool = unsafe {
+            device.borrow().device.create_command_pool(
+                device.borrow().queues.family,
+                CommandPoolCreateFlags::empty(),
+            )
+        }.expect("Can't create Command Pool");
+
+        let depth_buffer = ImageState::new_depth_image(
+            depth_desc,
+            dims,
+            &adapter,
+            &mut device.borrow_mut(),
+            &mut staging_pool
+        );
+
+        depth_buffer.wait_for_transfer_completion();
+
+        DepthBuffer {
+            depth_buffer,
+            depth_desc_pool
+        }
+    }
+
+    pub fn stencil_support(device: Rc<RefCell<DeviceState<B>>>, format: Format) -> bool {
+        let properties = device.borrow()
+        .physical_device_format_properties(Some(format));
+        // Format::D32SfloatS8Uint
+
+        properties.linear_tiling.contains(ImageFeature::DEPTH_STENCIL_ATTACHMENT) || properties.optimal_tiling.contains(ImageFeature::DEPTH_STENCIL_ATTACHMENT)
     }
 }

@@ -6,10 +6,11 @@ edition = "2018"
 
 [dependencies]
 zeus_core = { path = "../zeus_core", version = "0.1.0"}
-image     = "0.21"
-gfx-hal       = "0.5"
-gfx-backend-vulkan = "0.5"
-winit = { version = "0.21.0", features = ["web-sys"] }
+image = "0.21"
+gfx-hal = "0.6"
+gfx-auxil = "0.7.0"
+gfx-backend-vulkan = "0.6"
+winit = { version = "0.24.0", features = ["web-sys"] }
 env_logger = "0.7"
 log = "0.4"
 glsl-to-spirv = "0.1"
