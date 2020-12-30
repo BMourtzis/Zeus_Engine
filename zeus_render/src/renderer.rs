@@ -28,7 +28,7 @@ use super::{
     error::NoLevelLoadedError,
     framebuffer::FramebufferState,
     model::{
-        Color, Vertex, Dimensions
+        Color, Dimensions
     },
     obj::RenderObject,
     pass::RenderPassState,
@@ -38,9 +38,7 @@ use super::{
 
 use crate::zeus_core::{
     input,
-    math::{
-        Matrix4, Vector2, Vector3, Vector4
-    },
+    math::Matrix4,
     time::Stopwatch,
 };
 
@@ -149,7 +147,7 @@ impl<B: Backend> RendererState<B> {
             camera,
             window_dimensions,
             recreate_swapchain: true,
-            bg_color: [0.1, 0.1, 0.1, 1.0],
+            bg_color: [0.0, 0.0, 0.0, 1.0],
             cur_color: Color::Red,
             cur_value: 0,
             depth_buffer
@@ -159,12 +157,19 @@ impl<B: Backend> RendererState<B> {
     pub fn load_level(&mut self) {
         info!("Load new level");
 
-        let object = RenderObject::new(
+        // let object = RenderObject::new_from_vertices(
+        //     Rc::clone(&self.device),
+        //     &self.backend.adapter,
+        //     "./data/textures/viking_room.png",
+        //     &VERTICES,
+        //     &INDICES,
+        // );
+
+        let object = RenderObject::new_from_model(
             Rc::clone(&self.device),
             &self.backend.adapter,
-            "./data/textures/logo.png",
-            &VERTICES,
-            &INDICES,
+            "./data/models/viking_room.obj",
+            "./data/textures/viking_room.png"
         );
 
         let mut layouts = Vec::new();
@@ -314,14 +319,19 @@ impl<B: Backend> RendererState<B> {
             };
 
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
-            cmd_buffer.begin_debug_marker("setup", 0);
+            if cfg!(debug_assertions) {
+                cmd_buffer.begin_debug_marker("setup", 0);
+            }
             cmd_buffer.set_viewports(0, &[self.viewport.clone()]);
             cmd_buffer.set_scissors(0, &[self.viewport.rect]);
             cmd_buffer.bind_graphics_pipeline(
                 self.pipeline.pipeline.as_ref()
                     .expect("Pipeline is empty!")
             );
-            cmd_buffer.end_debug_marker();
+            if cfg!(debug_assertions) {
+                cmd_buffer.end_debug_marker();
+            }
+            
 
             cmd_buffer.begin_render_pass(
                 self.render_pass.render_pass.as_ref()
@@ -357,9 +367,11 @@ impl<B: Backend> RendererState<B> {
                 &[],
             );
 
-            cmd_buffer.draw_indexed(0..INDICES.len() as u32, 0, 0..1);
+            cmd_buffer.draw_indexed(0..self.object.as_ref().unwrap().indices.len() as u32, 0, 0..1);
             cmd_buffer.end_render_pass();
-            cmd_buffer.insert_debug_marker("done", 0);
+            if cfg!(debug_assertions) {
+                cmd_buffer.insert_debug_marker("done", 0);
+            }
             cmd_buffer.finish();
 
             let submission = Submission {
@@ -419,7 +431,7 @@ impl<B: Backend> RendererState<B> {
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
                 0.0,
-                step * self.timer.get_delta_f64(),
+                step * self.timer.get_delta_f32(),
             ));
         }
 
@@ -427,13 +439,13 @@ impl<B: Backend> RendererState<B> {
             self.camera.update_model(Matrix4::new().translate(
                 0.0,
                 0.0,
-                -step * self.timer.get_delta_f64(),
+                -step * self.timer.get_delta_f32(),
             ));
         }
 
         if input::is_btn_down(VirtualKeyCode::A) {
             self.camera.update_model(Matrix4::new().translate(
-                step * self.timer.get_delta_f64(),
+                step * self.timer.get_delta_f32(),
                 0.0,
                 0.0,
             ));
@@ -441,20 +453,36 @@ impl<B: Backend> RendererState<B> {
 
         if input::is_btn_down(VirtualKeyCode::D) {
             self.camera.update_model(Matrix4::new().translate(
-                -step * self.timer.get_delta_f64(),
+                -step * self.timer.get_delta_f32(),
                 0.0,
+                0.0,
+            ));
+        }
+
+        if input::is_btn_down(VirtualKeyCode::R) {
+            self.camera.update_model(Matrix4::new().translate(
+                0.0,
+                step * self.timer.get_delta_f32(),
+                0.0,
+            ));
+        }
+
+        if input::is_btn_down(VirtualKeyCode::F) {
+            self.camera.update_model(Matrix4::new().translate(
+                0.0,
+                -step * self.timer.get_delta_f32(),
                 0.0,
             ));
         }
 
         if input::is_btn_down(VirtualKeyCode::Q) {
             self.camera
-                .update_model(Matrix4::new().rotate_y(0.1 * self.timer.get_delta_f64()));
+                .update_model(Matrix4::new().rotate_y(0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::E) {
             self.camera
-                .update_model(Matrix4::new().rotate_y(-0.1 * self.timer.get_delta_f64()));
+                .update_model(Matrix4::new().rotate_y(-0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::J) {
@@ -480,7 +508,7 @@ impl<B: Backend> RendererState<B> {
         let step = 0.5_f32;
 
         self.camera
-            .update_model(Matrix4::new().rotate_y(x as f32 * -1.0 * step * self.timer.get_delta_f64()));
+            .update_model(Matrix4::new().rotate_y(x as f32 * -1.0 * step * self.timer.get_delta_f32()));
 
         //NOTE: Removed for now as gimbal lock makes things weird
         // self.camera
@@ -623,52 +651,3 @@ impl<B: Backend> Drop for RendererState<B> {
             .device.wait_idle().unwrap();
     }
 }
-
-const VERTICES: [Vertex; 8] = [
-    Vertex {
-        a_pos: Vector3 { x: 0.5, y: -0.33, z: 2.5 },
-        a_color: Vector4 { x: 1.0, y: 0.0, z: 0.0, w: 1.0 },
-        a_uv: Vector2 { x: 0.0, y: 1.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: -0.5, y: -0.33, z: 2.5 },
-        a_color: Vector4 {x: 0.0, y: 1.0, z: 0.0, w: 1.0 },
-        a_uv: Vector2 { x: 1.0, y: 1.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: -0.5, y: 0.33, z: 2.5 },
-        a_color: Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 1.0 },
-        a_uv: Vector2 { x: 1.0, y: 0.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: 0.5, y: 0.33, z: 2.5 },
-        a_color: Vector4 {x: 1.0, y: 1.0, z: 1.0, w: 1.0 },
-        a_uv: Vector2 { x: 0.0, y: 0.0 },
-    },
-
-    Vertex {
-        a_pos: Vector3 { x: 1.5, y: -0.33, z: 3.5 },
-        a_color: Vector4 {x: 1.0, y: 0.0, z: 0.0, w: 1.0 },
-        a_uv: Vector2 { x: 0.0, y: 1.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: 0.5, y: -0.33, z: 3.5 },
-        a_color: Vector4 {x: 0.0, y: 1.0, z: 0.0, w: 1.0 },
-        a_uv: Vector2 { x: 1.0, y: 1.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: 0.5, y: 0.33, z: 3.5 },
-        a_color: Vector4 { x: 0.0, y: 0.0, z: 1.0, w: 1.0 },
-        a_uv: Vector2 { x: 1.0, y: 0.0 },
-    },
-    Vertex {
-        a_pos: Vector3 { x: 1.5, y: 0.33, z: 3.5 },
-        a_color: Vector4 {x: 1.0, y: 1.0, z: 1.0, w: 1.0 },
-        a_uv: Vector2 { x: 0.0, y: 0.0 },
-    },
-];
-
-const INDICES: [u16; 12] = [
-    0, 1, 2, 2, 3, 0, //obj 1
-    4, 5, 6, 6, 7, 4 //obj 2
-];

@@ -18,6 +18,10 @@ impl Stopwatch {
         self.last_frame_time = Instant::now();
     }
 
+    pub fn get_current_delta(&self) -> u128 {
+        self.last_frame_time.elapsed().as_millis()
+    }
+
     pub fn get_delta(&self) -> u128 {
         self.delta
     }
@@ -26,11 +30,19 @@ impl Stopwatch {
         self.delta / 1000
     }
 
-    pub fn get_delta_f64(&self) -> f32 {
+    pub fn get_delta_f64(&self) -> f64 {
+        self.delta as f64
+    }
+
+    pub fn get_delta_f32(&self) -> f32 {
         self.delta as f32
     }
 
-    pub fn get_delta_seconds_f64(&self) -> f32 {
+    pub fn get_delta_seconds_f64(&self) -> f64 {
+        (self.delta as f64) / 1000.0
+    }
+
+    pub fn get_delta_seconds_f32(&self) -> f32 {
         (self.delta as f32) / 1000.0
     }
 

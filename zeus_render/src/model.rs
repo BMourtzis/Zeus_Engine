@@ -15,7 +15,9 @@ use gfx_hal::{
 };
 use std::{
     cell::RefCell,
-    mem::size_of, rc::Rc
+    cmp::Ordering,
+    mem::size_of,
+    rc::Rc
 };
 
 use zeus_core::math::{
@@ -137,6 +139,34 @@ impl Vertex {
                 }
             },
         ]
+    }
+}
+
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.eq(other) {
+            return Ordering::Equal;
+        }
+
+        if self.a_pos.magn() > other.a_pos.magn() {
+            Ordering::Greater
+        } else {
+            Ordering::Less
+        }
+    }
+}
+
+impl PartialOrd for Vertex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for Vertex {}
+
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.a_pos == other.a_pos && self.a_color == other.a_color && self.a_uv == other.a_uv
     }
 }
 

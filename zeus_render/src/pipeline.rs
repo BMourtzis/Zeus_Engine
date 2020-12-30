@@ -170,8 +170,13 @@ impl<B: Backend> Drop for PipelineState<B> {
     fn drop(&mut self) {
         let device = &self.device.borrow().device;
         unsafe {
-            device.destroy_graphics_pipeline(self.pipeline.take().unwrap());
-            device.destroy_pipeline_layout(self.pipeline_layout.take().unwrap());
+            if self.pipeline.is_some() {
+                device.destroy_graphics_pipeline(self.pipeline.take().unwrap());
+            }
+            
+            if self.pipeline_layout.is_some() {
+                device.destroy_pipeline_layout(self.pipeline_layout.take().unwrap());
+            }
         }
     }
 }

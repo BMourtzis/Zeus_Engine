@@ -9,6 +9,12 @@ use gfx_hal::{
     Backend, IndexType,
 };
 
+use zeus_core::{math::{
+    Vector2,
+    Vector3,
+    Vector4
+}, time::Stopwatch};
+
 use super::{
     adapter::AdapterState,
     buffer::BufferState,
@@ -22,7 +28,15 @@ use super::{
     },
 };
 
-use std::{cell::RefCell, fs, io::Cursor, rc::Rc};
+use tobj;
+
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    fs,
+    io::Cursor,
+    rc::Rc
+};
 
 const DEFAULT_TEXTURE: &[u8] = include_bytes!("../../data/textures/error.png");
 
@@ -33,10 +47,9 @@ pub struct RenderObject<B: Backend> {
     color_desc_pool: Option<B::DescriptorPool>,
     texture_desc_pool: Option<B::DescriptorPool>,
     //
-    #[allow(dead_code)]
-    vertices: Vec<Vertex>,
-    #[allow(dead_code)]
-    indices: Vec<u16>,
+    
+    pub vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
     color: ColorValue,
     //
     image: Option<ImageState<B>>,
@@ -48,12 +61,12 @@ pub struct RenderObject<B: Backend> {
 //TODO: add Some(Texture)
 //Texture = image path and type
 impl<B: Backend> RenderObject<B> {
-    pub fn new(
+    pub fn new_from_vertices(
         device: Rc<RefCell<DeviceState<B>>>,
         adapter: &AdapterState<B>,
         texture_path: &str,
         vertices: &[Vertex],
-        indices: &[u16],
+        indices: &[u32],
     ) -> Self {
         let texture_desc = DescSetLayout::new(
             Rc::clone(&device),
@@ -152,8 +165,10 @@ impl<B: Backend> RenderObject<B> {
         };
 
         //TODO: when loading textures we need to define file types
-        let img = image::load(Cursor::new(&image_bytes[..]), image::PNG)
-            .unwrap().to_rgba();
+        let img = image::load(
+            Cursor::new(&image_bytes[..]),
+            image::PNG
+        ).unwrap().to_rgba();
 
         let image = ImageState::new_texture(
             texture_desc,
@@ -185,7 +200,7 @@ impl<B: Backend> RenderObject<B> {
         let color_uniform = Uniform::new(
             Rc::clone(&device),
             &adapter.memory_types,
-            &[1.0_f32, 0.1_f32, 0.1_f32, 1.0_f32],
+            &[1.0_f32, 1.0_f32, 1.0_f32, 1.0_f32],
             color_desc,
             0,
         );
@@ -217,6 +232,75 @@ impl<B: Backend> RenderObject<B> {
             vertex_buffer,
             index_buffer,
         }
+    }
+
+    pub fn new_from_model(
+        device: Rc<RefCell<DeviceState<B>>>,
+        adapter: &AdapterState<B>,
+        model_path: &str,
+        texture_path: &str
+    ) -> Self {
+        let mut timer = Stopwatch::new();
+
+        let obj = tobj::load_obj(model_path, false);
+
+        debug!("Loaded file in {} ms", timer.get_current_delta());
+
+        //TODO: return an error
+        if let Err(err) = obj {
+            info!("{:?}", err);
+        }
+
+        let (models, _materials) = obj.unwrap();
+
+        let mut vertices: Vec<Vertex> = vec![];
+        let mut indices: Vec<u32> = vec![];
+        let mut unique_vertex_map: BTreeMap<Vertex, u32> = BTreeMap::new();
+
+        for (_i, m) in models.iter().enumerate() {
+            let mesh = &m.mesh;
+            
+            for (_j, idx) in mesh.indices.iter().enumerate() {
+                let index = *idx as usize;
+
+                let vertex = Vertex {
+                    a_pos: Vector3 {
+                        x: mesh.positions[index * 3],
+                        y: mesh.positions[index * 3 + 1],
+                        z: mesh.positions[index * 3 + 2]
+                    },
+                    a_color: Vector4 {
+                        x: 1.0,
+                        y: 1.0,
+                        z: 1.0,
+                        w: 1.0
+                    },
+                    a_uv: Vector2 {
+                        x: mesh.texcoords[index * 2],
+                        y: 1.0 - mesh.texcoords[index * 2 + 1]
+                    }
+                };
+
+                if unique_vertex_map.get(&vertex).is_none() {
+                    unique_vertex_map.insert(vertex, vertices.len() as u32);
+                    vertices.push(vertex);
+                }
+
+                indices.push(*unique_vertex_map.get(&vertex).unwrap());
+            }
+        }
+        
+        timer.update_time();
+
+        info!("Loaded Model with {} vertices and {} indices in {} ms", vertices.len(), indices.len(), timer.get_delta());
+
+        Self::new_from_vertices(
+            device,
+            &adapter,
+            texture_path,
+            &vertices,
+            &indices
+        )
     }
 
     #[allow(dead_code)]
@@ -303,7 +387,7 @@ impl<B: Backend> RenderObject<B> {
                     offset: 0,
                     size: None
                 },
-                index_type: IndexType::U16,
+                index_type: IndexType::U32,
             })
         }
 

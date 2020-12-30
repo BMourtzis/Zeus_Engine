@@ -359,6 +359,14 @@ impl DivAssign<f32> for Vector4 {
     }
 }
 
+impl Eq for Vector4 {}
+
+impl PartialEq for Vector4 {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y && self.z == other.z && self.w == other.w
+    }
+}
+
 impl Default for Vector4 {
     fn default() -> Self {
         Vector4 {
