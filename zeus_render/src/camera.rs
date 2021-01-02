@@ -134,8 +134,6 @@ impl<B: Backend> CameraState<B> {
         proj: Matrix4,
     ) {
         self.ubo.model = model;
-        self.ubo.model[5] *= -1.0;
-
         self.ubo.view = view;
         self.ubo.proj = proj;
 

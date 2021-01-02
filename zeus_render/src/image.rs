@@ -2,7 +2,7 @@ use super::{
     adapter::AdapterState,
     buffer::BufferState,
     constants::{
-        COLOR_RANGE,DEPTH_RANGE
+        DEPTH_RANGE, FILE_EXT, IMAGE_FORMAT
     },
     desc::{
         DescSet,DescSetWrite
@@ -11,37 +11,25 @@ use super::{
     model::Dimensions
 };
 
-use gfx_hal::{
-    buffer,
-    command::{
-        BufferImageCopy, CommandBuffer, CommandBufferFlags, Level
-    },
-    device::Device,
-    format::{
-        Aspects, Format, Swizzle
-    },
-    image::{
-        Access, Extent, Filter, Kind, Layout, Offset, SamplerDesc, Size, SubresourceLayers, Tiling, Usage, ViewCapabilities, ViewKind, WrapMode, Lod, PackedColor
-    },
-    memory::{
+use gfx_hal::{Backend, buffer, command::{
+        BufferImageCopy, CommandBuffer, CommandBufferFlags, ImageBlit, Level
+    }, device::Device, format::{
+        Aspects, Format, ImageFeature, Swizzle
+    }, image::{
+        Access, Extent, Filter, Kind, Layout, Offset, SamplerDesc, Size, SubresourceLayers, Tiling, Usage, ViewCapabilities, ViewKind, WrapMode, Lod, PackedColor, SubresourceRange
+    }, memory::{
         Barrier, Dependencies, Properties
-    },
-    pool::CommandPool,
-    pso::{
+    }, pool::CommandPool, pso::{
         Descriptor, PipelineStage, Comparison
-    },
-    queue::CommandQueue,
-    Backend,
-};
+    }, queue::{CommandQueue, QueueFamilyId}};
 
-use image::{
-    ImageBuffer,
-    Rgba
-};
+use regex::Regex;
 
 use std::{
     iter,
-    rc::Rc
+    rc::Rc,
+    fs,
+    io::Cursor,
 };
 
 
@@ -54,21 +42,59 @@ pub struct ImageState<B: Backend> {
     image: Option<B::Image>,
     memory: Option<B::Memory>,
     transfered_image_fence: Option<B::Fence>,
+    mip_levels: u8
 }
 
 impl<B: Backend> ImageState<B> {
     pub fn new_texture(
         mut desc: DescSet<B>,
-        img: &ImageBuffer<Rgba<u8>, Vec<u8>>,
+        img_path: &str,
         adapter: &AdapterState<B>,
         usage: buffer::Usage,
         device_state: &mut DeviceState<B>,
         staging_pool: &mut B::CommandPool,
     ) -> Self {
+
+        let re = Regex::new(FILE_EXT).unwrap();
+        let mut file_ext = re.captures(img_path).unwrap().get(1).unwrap().as_str();
+
+        //IMAGE
+        let image_bytes = match fs::read(img_path) {
+            Ok(img) => img,
+            Err(err) => {
+                error!("{:?}", err);
+                file_ext = "png";
+                fs::read("./data/textures/error.png").unwrap()
+            }
+        };
+
+        let file_format = match file_ext {
+            "png" => image::PNG,
+            "jpg" | "jpeg" => image::JPEG,
+            "gif" => image::GIF,
+            "ico" => image::ICO,
+            _ => image::PNG
+        };
+
+        let img = image::load(
+            Cursor::new(&image_bytes[..]),
+            file_format
+        ).expect("Could not load Image")
+        .to_rgba();
+
+        let width = if img.width() > img.height() {
+            img.width() as f32
+        } else {
+            img.height() as f32
+        };
+
+        let mip_levels = (width.log2().floor() + 1.0) as u8;
+
+        //BUFFER
         let (buffer, dims, row_pitch, stride) = BufferState::new_texture(
             Rc::clone(&desc.layout.device),
             &device_state.device,
-            img,
+            &img,
             adapter,
             usage,
         );
@@ -79,13 +105,14 @@ impl<B: Backend> ImageState<B> {
         let mut image = unsafe {
             device.create_image(
                 Kind::D2(dims.width as Size, dims.height as Size, 1, 1),
-                1,
-                Format::Rgba8Srgb,
+                mip_levels,
+                IMAGE_FORMAT,
                 Tiling::Optimal,
-                Usage::TRANSFER_DST | Usage::SAMPLED,
+                Usage::TRANSFER_SRC | Usage::TRANSFER_DST | Usage::SAMPLED,
                 ViewCapabilities::empty(),
             )
         }.expect("Could not create image");
+
         let req = unsafe { 
             device.get_image_requirements(&image) 
         };
@@ -111,9 +138,15 @@ impl<B: Backend> ImageState<B> {
             device.create_image_view(
                 &image,
                 ViewKind::D2,
-                Format::Rgba8Srgb,
+                IMAGE_FORMAT,
                 Swizzle::NO,
-                COLOR_RANGE.clone(),
+                SubresourceRange {
+                    aspects: Aspects::COLOR,
+                    level_start: 0,
+                    level_count: Some(mip_levels),
+                    layer_start: 0,
+                    layer_count: Some(1)
+                },
             )
         }.expect("Could not create image view");
         
@@ -121,10 +154,10 @@ impl<B: Backend> ImageState<B> {
             device.create_sampler(&SamplerDesc {
                 mag_filter: Filter::Linear,
                 min_filter: Filter::Linear,
-                mip_filter: Filter::Linear,
+                mip_filter: Filter::Nearest,
                 wrap_mode: (WrapMode::Clamp, WrapMode::Clamp, WrapMode::Clamp),
                 lod_bias: Lod(0.0_f32),
-                lod_range: Lod::RANGE,
+                lod_range: Lod(0.0) .. Lod(mip_levels as f32),
                 comparison: Some(Comparison::Always),
                 border: PackedColor(0_u32),
                 normalized: true,
@@ -152,7 +185,11 @@ impl<B: Backend> ImageState<B> {
             device,
         );
 
-        let transfered_image_fence = device.create_fence(false).expect("Can't create fence");
+        let transfered_image_fence = device.create_fence(false)
+            .expect("Can't create fence");
+
+        let device_props = device_state
+            .physical_device_format_properties(Some(IMAGE_FORMAT));
 
         //Copy buffer to texture
         unsafe {
@@ -160,14 +197,20 @@ impl<B: Backend> ImageState<B> {
             cmd_buffer.begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
 
             cmd_buffer.pipeline_barrier(
-                PipelineStage::TOP_OF_PIPE..PipelineStage::TRANSFER,
+                PipelineStage::TOP_OF_PIPE .. PipelineStage::TRANSFER,
                 Dependencies::empty(),
                 &[Barrier::Image {
                     states: (Access::empty(), Layout::Undefined)
                         ..(Access::TRANSFER_WRITE, Layout::TransferDstOptimal),
                     target: &image,
-                    families: None,
-                    range: COLOR_RANGE.clone(),
+                    families: Some(QueueFamilyId(0) .. QueueFamilyId(0)),
+                    range: SubresourceRange {
+                        aspects: Aspects::COLOR,
+                        level_start: 0,
+                        level_count: Some(mip_levels),
+                        layer_start: 0,
+                        layer_count: Some(1)
+                    }
                 }],
             );
 
@@ -193,16 +236,108 @@ impl<B: Backend> ImageState<B> {
                 }],
             );
 
+            if device_props.optimal_tiling.contains(ImageFeature::SAMPLED_LINEAR) {
+                let mut mip_width = img.width();
+                let mut mip_height = img.height();
+
+                for i in 1 .. mip_levels {
+                    cmd_buffer.pipeline_barrier(
+                        PipelineStage::TRANSFER .. PipelineStage::TRANSFER,
+                        Dependencies::empty(),
+                        &[Barrier::Image {
+                            states: (Access::TRANSFER_WRITE, Layout::TransferDstOptimal) 
+                            .. (Access::TRANSFER_READ, Layout::TransferSrcOptimal),
+                            target: &image,
+                            families: None,
+                            range: SubresourceRange {
+                                aspects: Aspects::COLOR,
+                                level_start: i - 1,
+                                level_count: Some(1),
+                                layer_start: 0,
+                                layer_count: Some(1)
+                            }
+                        }]
+                    );
+
+                    cmd_buffer.blit_image(
+                        &image,
+                        Layout::TransferSrcOptimal,
+                        &image,
+                        Layout::TransferDstOptimal,
+                        Filter::Linear,
+                        &[ImageBlit {
+                            src_subresource: SubresourceLayers {
+                                aspects: Aspects::COLOR,
+                                level: i - 1,
+                                layers: 0 .. 1
+                            },
+                            src_bounds: Offset::ZERO .. Offset {
+                                x: mip_width as i32,
+                                y: mip_height as i32,
+                                z: 1
+                            },
+                            dst_subresource: SubresourceLayers {
+                                aspects: Aspects::COLOR,
+                                level: i,
+                                layers: 0 .. 1
+                            },
+                            dst_bounds: Offset::ZERO .. Offset {
+                                x: if mip_width > 1 {
+                                    (mip_width / 2) as i32
+                                } else { 1 },
+                                y: if mip_height > 1 {
+                                    (mip_height / 2) as i32
+                                } else { 1 },
+                                z: 1
+                            }
+                        }]
+                    );
+
+                    cmd_buffer.pipeline_barrier(
+                        PipelineStage::TRANSFER .. PipelineStage::FRAGMENT_SHADER,
+                        Dependencies::empty(),
+                        &[Barrier::Image {
+                            states: (Access::TRANSFER_READ, Layout::TransferSrcOptimal) 
+                            .. (Access::SHADER_READ, Layout::ShaderReadOnlyOptimal),
+                            target: &image,
+                            families: None,
+                            range: SubresourceRange {
+                                aspects: Aspects::COLOR,
+                                level_start: i - 1,
+                                level_count: Some(1),
+                                layer_start: 0,
+                                layer_count: Some(1)
+                            }
+                        }]
+                    );
+
+                    if mip_width > 1 {
+                        mip_width /= 2;
+                    }
+                    
+                    if mip_height > 1 {
+                        mip_height /= 2;
+                    }
+                    
+                }
+            }
+
             cmd_buffer.pipeline_barrier(
-                PipelineStage::TRANSFER..PipelineStage::FRAGMENT_SHADER,
+                PipelineStage::TRANSFER .. PipelineStage::FRAGMENT_SHADER,
                 Dependencies::empty(),
                 &[Barrier::Image {
                     states: (Access::TRANSFER_WRITE, Layout::TransferDstOptimal)
                         ..(Access::SHADER_READ, Layout::ShaderReadOnlyOptimal),
                     target: &image,
                     families: None,
-                    range: COLOR_RANGE.clone(),
-                }],
+                    range: SubresourceRange {
+                        aspects: Aspects::COLOR,
+                        level_start: mip_levels - 1,
+                        level_count: Some(mip_levels),
+                        layer_start: 0,
+                        layer_count: Some(1)
+                    }
+                }]
             );
 
             cmd_buffer.finish();
@@ -219,6 +354,7 @@ impl<B: Backend> ImageState<B> {
             image: Some(image),
             memory: Some(memory),
             transfered_image_fence: Some(transfered_image_fence),
+            mip_levels
         }
     }
 
@@ -318,7 +454,8 @@ impl<B: Backend> ImageState<B> {
             image_view: Some(depth_image_view),
             image: Some(depth_image),
             memory: Some(memory),
-            transfered_image_fence: Some(transfered_image_fence)
+            transfered_image_fence: Some(transfered_image_fence),
+            mip_levels: 0
         }
     }
 

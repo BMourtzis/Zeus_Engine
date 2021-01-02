@@ -1,5 +1,7 @@
 use gfx_hal::{
-    buffer::{IndexBufferView, Usage, SubRange},
+    buffer::{
+        IndexBufferView, Usage, SubRange
+    },
     command::CommandBuffer,
     device::Device,
     pool::CommandPoolCreateFlags,
@@ -9,11 +11,14 @@ use gfx_hal::{
     Backend, IndexType,
 };
 
-use zeus_core::{math::{
-    Vector2,
-    Vector3,
-    Vector4
-}, time::Stopwatch};
+use zeus_core::{
+    math::{
+        Vector2,
+        Vector3,
+        Vector4
+    }, 
+    time::Stopwatch
+};
 
 use super::{
     adapter::AdapterState,
@@ -33,12 +38,8 @@ use tobj;
 use std::{
     cell::RefCell,
     collections::BTreeMap,
-    fs,
-    io::Cursor,
     rc::Rc
 };
-
-const DEFAULT_TEXTURE: &[u8] = include_bytes!("../../data/textures/error.png");
 
 //TODO: Should separate to Geometry, Material, Texture
 //TODO: Should create pipeline as well
@@ -155,24 +156,9 @@ impl<B: Backend> RenderObject<B> {
         let texture_desc = texture_desc.create_desc_set(texture_desc_pool.as_mut().unwrap());
         let color_desc = color_desc.create_desc_set(color_desc_pool.as_mut().unwrap());
 
-        //IMAGE
-        let image_bytes = match fs::read(texture_path) {
-            Ok(img) => img,
-            Err(err) => {
-                error!("{:?}", err);
-                DEFAULT_TEXTURE.to_vec()
-            }
-        };
-
-        //TODO: when loading textures we need to define file types
-        let img = image::load(
-            Cursor::new(&image_bytes[..]),
-            image::PNG
-        ).unwrap().to_rgba();
-
         let image = ImageState::new_texture(
             texture_desc,
-            &img,
+            texture_path,
             &adapter,
             Usage::TRANSFER_SRC,
             &mut device.borrow_mut(),

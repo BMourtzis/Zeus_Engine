@@ -1,7 +1,17 @@
-use crate::math::{Vector3, Vector4, Matrix3};
+use crate::math::{
+    Matrix3,
+    Vector3,
+    Vector4
+};
 
-use std::fmt::{self, Display};
-use std::ops::{Index, IndexMut, Mul, MulAssign};
+use std::{
+    fmt::{
+        self, Display
+    },
+    ops::{
+        Index, IndexMut, Mul, MulAssign
+    }
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Matrix4 {
@@ -9,22 +19,132 @@ pub struct Matrix4 {
 }
 
 impl Matrix4 {
-    pub fn zero() -> Matrix4 {
+    //Constructors
+    pub fn zero() -> Self {
         Matrix4 { entries: [0.0; 16] }
     }
 
-    pub fn new() -> Matrix4 {
-        let mut result = Matrix4::zero();
+    pub fn new() -> Self {
+        let mut res = Matrix4::zero();
 
-        result[0] = 1.0;
-        result[5] = 1.0;
-        result[10] = 1.0;
-        result[15] = 1.0;
+        res[0] = 1.0;
+        res[5] = 1.0;
+        res[10] = 1.0;
+        res[15] = 1.0;
 
-        result
+        res
     }
 
-    pub fn from_matrix3(mat: Matrix3) -> Matrix4 {
+    pub fn new_traslation(x: f32, y: f32, z: f32) -> Self {
+        let mut res = Matrix4::new();
+
+        res[3] = x;
+        res[7] = y;
+        res[11] = z;
+
+        res
+    }
+
+    pub fn new_rotation_x(theta: f32) -> Self {
+        let mut res = Matrix4::new();
+        let theta = theta.to_radians();
+
+        res[5] = theta.cos();
+        res[6] = theta.sin();
+
+        res[9] = -theta.sin();
+        res[10] = theta.cos();
+
+        res
+    }
+
+    pub fn new_rotation_y(theta: f32) -> Self {
+        let mut res = Matrix4::new();
+        let theta = theta.to_radians();
+
+        res[0] = theta.cos();
+        res[2] = -theta.sin();
+
+        res[8] = theta.sin();
+        res[10] = theta.cos();
+
+        res
+    }
+
+    pub fn new_rotation_z(theta: f32) -> Self {
+        let mut res = Matrix4::new();
+        let theta = theta.to_radians();
+
+        res[0] = theta.cos();
+        res[1] = theta.sin();
+
+        res[4] = -theta.sin();
+        res[5] = theta.cos();
+
+        res
+    }
+
+    pub fn new_rotation(axis: Vector3, theta: f32) -> Self {
+        let mut res = Matrix4::new();
+
+        let theta = theta.to_radians();
+        let axis = axis.normalize();
+
+        res[0] = axis.x.powi(2) * (1.0 - theta.cos()) + theta.cos();
+        res[1] = axis.x * axis.y * (1.0 - theta.cos()) + axis.z * theta.sin();
+        res[2] = axis.x * axis.z * (1.0 - theta.cos()) - axis.y * theta.sin();
+
+        res[4] = axis.x * axis.y * (1.0 - theta.cos()) - axis.z * theta.sin();
+        res[5] = axis.y.powi(2) * (1.0 - theta.cos()) + theta.cos();
+        res[6] = axis.y * axis.z * (1.0 - theta.cos()) + axis.x * theta.sin();
+
+        res[8] = axis.x * axis.z * (1.0 - theta.cos()) + axis.y * theta.sin();
+        res[9] = axis.y * axis.z * (1.0 - theta.cos()) - axis.x * theta.sin();
+        res[10] = axis.z.powi(2) * (1.0 - theta.cos()) + theta.cos();
+
+        res
+    }
+
+    pub fn new_scale(x: f32, y: f32, z: f32) -> Self {
+        let mut res = Matrix4::new();
+
+        res[0] = x;
+        res[5] = y;
+        res[10] = z;
+
+        res
+    }
+
+    pub fn new_scale_vector(scale: Vector3) -> Self {
+        let mut res = Matrix4::new();
+
+        res[0] = scale.x;
+        res[5] = scale.y;
+        res[10] = scale.z;
+
+        res
+    }
+
+    pub fn new_scale_axis(axis: Vector3, scale: f32) -> Self {
+        let mut res = Matrix4::new();
+        let axis = axis.normalize();
+
+        res[0] = 1.0 + (scale - 1.0) * axis.x.powi(2);
+        res[1] = (scale - 1.0) * axis.x * axis.y;
+        res[2] = (scale - 1.0) * axis.x * axis.z;
+
+        res[4] = (scale - 1.0) * axis.z * axis.y;
+        res[5] = 1.0 + (scale - 1.0) * axis.y.powi(2);
+        res[6] = (scale - 1.0) * axis.y * axis.z;
+
+        res[8] = (scale - 1.0) * axis.x * axis.z;
+        res[9] = (scale - 1.0) * axis.y * axis.z;
+        res[10] = 1.0 + (scale - 1.0) * axis.z.powi(2);
+
+        res
+    }
+
+    pub fn from_matrix3(mat: Matrix3) -> Self {
         let mut new_mat = Matrix4::new();
 
         new_mat[0] = mat[0];
@@ -42,11 +162,7 @@ impl Matrix4 {
         new_mat
     }
 
-    pub fn from_3d_vectors(
-        a: &Vector3,
-        b: &Vector3,
-        c: &Vector3,
-    ) -> Matrix4 {
+    pub fn from_3d_vectors(a: &Vector3, b: &Vector3, c: &Vector3) -> Self {
         let mut result = Matrix4::zero();
 
         result[0] = a.x;
@@ -72,7 +188,7 @@ impl Matrix4 {
         result
     }
 
-    pub fn from_vector3(vec: &Vector3) -> Matrix4 {
+    pub fn from_vector3(vec: &Vector3) -> Self {
         let mut mat = Matrix4::new();
 
         mat[3] = vec.x;
@@ -87,7 +203,7 @@ impl Matrix4 {
         aspect: f32,
         near: f32,
         far: f32,
-    ) -> Matrix4 {
+    ) -> Self {
         let mut aspect = aspect;
         if aspect <= 0.0 {
             aspect = 1.0;
@@ -103,14 +219,17 @@ impl Matrix4 {
                 0.0,
                 0.0,
                 0.0,
+
                 0.0,
                 f,
                 0.0,
                 0.0,
+
                 0.0,
                 0.0,
                 -(far + near) / (far - near),
                 -(2.0 * far * near) / (far - near),
+
                 0.0,
                 0.0,
                 -1.0,
@@ -119,11 +238,7 @@ impl Matrix4 {
         }
     }
 
-    pub fn look_at(
-        pos: Vector3,
-        target: Vector3,
-        up: Vector3,
-    ) -> Matrix4 {
+    pub fn look_at(pos: Vector3, target: Vector3, up: Vector3) -> Self {
         let f = (pos - target).normalize();
 
         let mut r = f.cross(&up).normalize();
@@ -139,167 +254,58 @@ impl Matrix4 {
         }
     }
 
-    //Methods
+    pub fn new_projection() -> Self {
+        let mut res = Matrix4::new();
+        res[0] = -1.0;
+        res[5] = -1.0;
 
+        res
+    }
+    
+    //Translation
     /// Translates the current matrix
-    pub fn translate(
-        self,
-        x: f32,
-        y: f32,
-        z: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-
-        mat[3] = x;
-        mat[7] = y;
-        mat[11] = z;
-
-        mat * self
+    pub fn translate(&mut self, x: f32, y: f32,z: f32) {
+        *self = Matrix4::new_traslation(x, y, z) * *self;
     }
 
-    pub fn translate_by_vector(
-        self,
-        vec: Vector3,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-
-        mat[3] = vec.x;
-        mat[7] = vec.y;
-        mat[11] = vec.z;
-
-        mat * self
+    pub fn translate_by_vector(&mut self, vec: Vector3) {
+        *self = Matrix4::new_traslation(vec.x, vec.y, vec.z) * *self;
     }
 
+    //Scale
     /// Scale the matrix along the Cardinal Axis
-    pub fn scale(
-        self,
-        x: f32,
-        y: f32,
-        z: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-
-        mat[0] = x;
-        mat[5] = y;
-        mat[10] = z;
-
-        mat * self
+    pub fn scale(&mut self, x: f32, y: f32, z: f32) {
+        *self = Matrix4::new_scale(x, y, z) * *self;
     }
 
-    pub fn scale_with_vector(
-        self,
-        scale: Vector3,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-
-        mat[0] = scale.x;
-        mat[5] = scale.x;
-        mat[10] = scale.x;
-
-        mat * self
+    pub fn scale_with_vector(&mut self, scale: Vector3)  {
+        *self = Matrix4::new_scale_vector(scale) * *self
     }
 
-    pub fn scale_axis(
-        self,
-        axis: Vector3,
-        scale: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-        let axis = axis.normalize();
-
-        mat[0] = 1.0 + (scale - 1.0) * axis.x.powi(2);
-        mat[1] = (scale - 1.0) * axis.x * axis.y;
-        mat[2] = (scale - 1.0) * axis.x * axis.z;
-
-        mat[4] = (scale - 1.0) * axis.z * axis.y;
-        mat[5] = 1.0 + (scale - 1.0) * axis.y.powi(2);
-        mat[6] = (scale - 1.0) * axis.y * axis.z;
-
-        mat[8] = (scale - 1.0) * axis.x * axis.z;
-        mat[9] = (scale - 1.0) * axis.y * axis.z;
-        mat[10] = 1.0 + (scale - 1.0) * axis.z.powi(2);
-
-        mat * self
+    pub fn scale_axis(&mut self, axis: Vector3, scale: f32) {
+        *self = Matrix4::new_scale_axis(axis, scale) * *self
     }
 
-    pub fn rotate_x(
-        self,
-        theta: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-        let theta = theta.to_radians();
+    //Rotation
 
-        mat[5] = theta.cos();
-        mat[6] = theta.sin();
-
-        mat[9] = -theta.sin();
-        mat[10] = theta.cos();
-
-        mat * self
+    pub fn rotate_x(&mut self, theta: f32) {
+        *self = Matrix4::new_rotation_x(theta) * *self;
     }
 
-    pub fn rotate_y(
-        self,
-        theta: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-        let theta = theta.to_radians();
-
-        mat[0] = theta.cos();
-        mat[2] = -theta.sin();
-
-        mat[8] = theta.sin();
-        mat[10] = theta.cos();
-
-        mat * self
+    pub fn rotate_y(&mut self, theta: f32) {
+        *self = Matrix4::new_rotation_y(theta) * *self;
     }
 
-    pub fn rotate_z(
-        self,
-        theta: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-        let theta = theta.to_radians();
-
-        mat[0] = theta.cos();
-        mat[1] = theta.sin();
-
-        mat[4] = -theta.sin();
-        mat[5] = theta.cos();
-
-        mat * self
+    pub fn rotate_z(&mut self, theta: f32) {
+        *self = Matrix4::new_rotation_z(theta) * *self;
     }
 
-    pub fn rotate(
-        self,
-        axis: Vector3,
-        theta: f32,
-    ) -> Matrix4 {
-        let mut mat = Matrix4::new();
-
-        let theta = theta.to_radians();
-        let axis = axis.normalize();
-
-        mat[0] = axis.x.powi(2) * (1.0 - theta.cos()) + theta.cos();
-        mat[1] = axis.x * axis.y * (1.0 - theta.cos()) + axis.z * theta.sin();
-        mat[2] = axis.x * axis.z * (1.0 - theta.cos()) - axis.y * theta.sin();
-
-        mat[4] = axis.x * axis.y * (1.0 - theta.cos()) - axis.z * theta.sin();
-        mat[5] = axis.y.powi(2) * (1.0 - theta.cos()) + theta.cos();
-        mat[6] = axis.y * axis.z * (1.0 - theta.cos()) + axis.x * theta.sin();
-
-        mat[8] = axis.x * axis.z * (1.0 - theta.cos()) + axis.y * theta.sin();
-        mat[9] = axis.y * axis.z * (1.0 - theta.cos()) - axis.x * theta.sin();
-        mat[10] = axis.z.powi(2) * (1.0 - theta.cos()) + theta.cos();
-
-        mat * self
+    pub fn rotate(&mut self, axis: Vector3, theta: f32) {
+        *self = Matrix4::new_rotation(axis, theta) * *self;
     }
 
     //TODO: add tests
-    pub fn orthographic_projection(
-        self,
-        axis: Vector3,
-    ) -> Matrix4 {
+    pub fn orthographic_projection(self, axis: Vector3) -> Self {
         let mut mat = Matrix4::new();
 
         mat[0] = 1.0 - axis.x.powi(2);
@@ -317,7 +323,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn orth_proj_xy(self) -> Matrix4 {
+    pub fn orth_proj_xy(self) -> Self {
         let mut mat = Matrix4::new();
 
         mat[10] = 0.0;
@@ -325,7 +331,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn orth_proj_xz(self) -> Matrix4 {
+    pub fn orth_proj_xz(self) -> Self {
         let mut mat = Matrix4::new();
 
         mat[5] = 0.0;
@@ -333,7 +339,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn orth_proj_yz(self) -> Matrix4 {
+    pub fn orth_proj_yz(self) -> Self {
         let mut mat = Matrix4::new();
 
         mat[0] = 0.0;
@@ -341,10 +347,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn perspective_projection(
-        self,
-        dist: f32,
-    ) -> Matrix4 {
+    pub fn perspective_projection(self, dist: f32) -> Self {
         let mut mat = Matrix4::new();
 
         mat[14] = 1.0 / dist;
@@ -352,10 +355,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn reflection(
-        self,
-        axis: Vector4,
-    ) -> Matrix4 {
+    pub fn reflection(self, axis: Vector4) -> Self {
         let mut mat = Matrix4::new();
 
         let axis = axis.normalize();
@@ -375,11 +375,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_xy(
-        self,
-        s: f32,
-        t: f32,
-    ) -> Matrix4 {
+    pub fn shear_xy(self, s: f32, t: f32) -> Self {
         let mut mat = Matrix4::zero();
 
         mat[8] = s;
@@ -388,11 +384,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_xz(
-        self,
-        s: f32,
-        t: f32,
-    ) -> Matrix4 {
+    pub fn shear_xz(self, s: f32, t: f32) -> Self {
         let mut mat = Matrix4::zero();
 
         mat[4] = s;
@@ -401,11 +393,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn shear_yz(
-        self,
-        s: f32,
-        t: f32,
-    ) -> Matrix4 {
+    pub fn shear_yz(self, s: f32, t: f32) -> Self {
         let mut mat = Matrix4::zero();
 
         mat[1] = s;
@@ -414,7 +402,7 @@ impl Matrix4 {
         mat * self
     }
 
-    pub fn invert(&self) -> Matrix4 {
+    pub fn invert(&self) -> Self {
         let mut result = Matrix4::zero();
 
         for i in 0..16 {
@@ -424,7 +412,7 @@ impl Matrix4 {
         result
     }
 
-    pub fn transpose(&self) -> Matrix4 {
+    pub fn transpose(&self) -> Self {
         let mut result = Matrix4::zero();
 
         for i in 0..4 {
@@ -441,10 +429,7 @@ impl Matrix4 {
         Vector4::new(self[0], self[5], self[10], self[15])
     }
 
-    pub fn get(
-        &self,
-        idx: usize,
-    ) -> Option<f32> {
+    pub fn get(&self, idx: usize,) -> Option<f32> {
         if idx > 15 {
             None
         } else {
@@ -500,10 +485,27 @@ impl Mul for Matrix4 {
     type Output = Matrix4;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn mul(
-        self,
-        rhs: Matrix4,
-    ) -> Self::Output {
+    fn mul( self,rhs: Matrix4 ) -> Self::Output {
+        let mut mat = Matrix4::zero();
+
+        for i in 0..16 {
+            let row = (i / 4) * 4;
+            let col = i % 4;
+
+            mat[i] = (self[row] * rhs[col])
+                + (self[row + 1] * rhs[col + 4])
+                + (self[row + 2] * rhs[col + 8])
+                + (self[row + 3] * rhs[col + 12]);
+        }
+
+        mat
+    }
+}
+
+impl Mul<&mut Matrix4> for Matrix4 {
+    type Output = Matrix4;
+
+    fn mul(self, rhs: &mut Matrix4) -> Self::Output {
         let mut mat = Matrix4::zero();
 
         for i in 0..16 {
@@ -601,7 +603,7 @@ mod tests {
     use crate::math::{Vector3, Vector4, Matrix4};
 
     #[test]
-    fn new() {
+    fn zero() {
         let mat = Matrix4::zero();
 
         for i in 0..16 {
@@ -622,6 +624,103 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn new_translation() {
+        let mat = Matrix4::new_traslation(3.0, 4.0, 5.0);
+
+        assert_eq!(mat[0], 1.0);
+        assert_eq!(mat[5], 1.0);
+        assert_eq!(mat[10], 1.0);
+        assert_eq!(mat[15], 1.0);
+
+        assert_eq!(mat[3], 3.0);
+        assert_eq!(mat[7], 4.0);
+        assert_eq!(mat[11], 5.0);
+    }
+
+    #[test]
+    fn new_rotation_x() {
+        let mat = Matrix4::new_rotation_x(90.0);
+
+        assert_eq!(mat[0].round(), 1.0);
+        assert_eq!(mat[5].round(), 0.0);
+        assert_eq!(mat[10].round(), 0.0);
+        assert_eq!(mat[15], 1.0);
+
+        assert_eq!(mat[6], 1.0);
+        assert_eq!(mat[9], -1.0);
+    }
+
+    #[test]
+    fn new_rotation_y() {
+        let mat = Matrix4::new_rotation_y(90.0);
+
+        assert_eq!(mat[0].round(), 0.0);
+        assert_eq!(mat[5], 1.0);
+        assert_eq!(mat[10].round(), 0.0);
+
+        assert_eq!(mat[2], -1.0);
+        assert_eq!(mat[8], 1.0);
+        assert_eq!(mat[15], 1.0);
+    }
+
+    #[test]
+    fn new_rotation_z() {
+        let mat = Matrix4::new_rotation_z(90.0);
+
+        assert_eq!(mat[0].round(), 0.0);
+        assert_eq!(mat[5].round(), 0.0);
+        assert_eq!(mat[10], 1.0);
+
+        assert_eq!(mat[1], 1.0);
+        assert_eq!(mat[4], -1.0);
+        assert_eq!(mat[15], 1.0);
+    }
+
+    #[test]
+    fn new_rotation() {
+        let mat = Matrix4::new_rotation(Vector3::X, 90.0);
+
+        assert_eq!(mat[0].round(), 1.0);
+        assert_eq!(mat[5].round(), 0.0);
+        assert_eq!(mat[10].round(), 0.0);
+        assert_eq!(mat[15].round(), 1.0);
+
+        assert_eq!(mat[6].round(), 1.0);
+        assert_eq!(mat[9].round(), -1.0);
+        
+    }
+    
+    #[test]
+    fn new_scale() {
+        let mat = Matrix4::new_scale(3.0, 4.0, 5.0);
+
+        assert_eq!(mat[0], 3.0);
+        assert_eq!(mat[5], 4.0);
+        assert_eq!(mat[10], 5.0);
+        assert_eq!(mat[15], 1.0);
+    }
+
+    #[test]
+    fn new_scale_vector() {
+        let mat = Matrix4::new_scale_vector(Vector3::new(3.0, 4.0, 5.0));
+
+        assert_eq!(mat[0], 3.0);
+        assert_eq!(mat[5], 4.0);
+        assert_eq!(mat[10], 5.0);
+        assert_eq!(mat[15], 1.0);
+    }
+
+    #[test]
+    fn new_scale_axis() {
+        let mat = Matrix4::new_scale_axis(Vector3::X, 3.0);
+
+        assert_eq!(mat[0], 3.0);
+        assert_eq!(mat[5], 1.0);
+        assert_eq!(mat[10], 1.0);
+        assert_eq!(mat[15], 1.0);
     }
 
     #[test]
@@ -706,7 +805,7 @@ mod tests {
     #[test]
     fn translate() {
         let mut mat = Matrix4::new();
-        mat = mat.translate(3.0, 4.0, 5.0);
+        mat.translate(3.0, 4.0, 5.0);
 
         assert_eq!(mat[0], 1.0);
         assert_eq!(mat[5], 1.0);
@@ -721,7 +820,7 @@ mod tests {
     #[test]
     fn translate_by_vector() {
         let mut mat = Matrix4::new();
-        mat = mat.translate_by_vector(Vector3::new(3.0, 3.0, 3.0));
+        mat.translate_by_vector(Vector3::new(3.0, 3.0, 3.0));
 
         assert_eq!(mat[0], 1.0);
         assert_eq!(mat[5], 1.0);
@@ -737,8 +836,7 @@ mod tests {
     #[test]
     fn scale() {
         let mut mat = Matrix4::new();
-
-        mat = mat.scale(2.0, 3.0, 5.0);
+        mat.scale(2.0, 3.0, 5.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -763,8 +861,7 @@ mod tests {
     #[test]
     fn scale_arbitraty_x() {
         let mut mat = Matrix4::new();
-
-        mat = mat.scale_axis(Vector3::X, 2.0);
+        mat.scale_axis(Vector3::X, 2.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -789,8 +886,7 @@ mod tests {
     #[test]
     fn scale_arbitraty_y() {
         let mut mat = Matrix4::new();
-
-        mat = mat.scale_axis(Vector3::Y, 2.0);
+        mat.scale_axis(Vector3::Y, 2.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -815,8 +911,7 @@ mod tests {
     #[test]
     fn scale_arbitraty_z() {
         let mut mat = Matrix4::new();
-
-        mat = mat.scale_axis(Vector3::Z, 2.0);
+        mat.scale_axis(Vector3::Z, 2.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -842,8 +937,7 @@ mod tests {
     #[test]
     fn rotate_x() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate_x(90.0);
+        mat.rotate_x(90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -865,8 +959,7 @@ mod tests {
     #[test]
     fn rotate_y() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate_y(90.0);
+        mat.rotate_y(90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -888,8 +981,7 @@ mod tests {
     #[test]
     fn rotate_z() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate_z(90.0);
+        mat.rotate_z(90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -911,8 +1003,7 @@ mod tests {
     #[test]
     fn rotate_axis_x() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate(Vector3::X, 90.0);
+        mat.rotate(Vector3::X, 90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -934,8 +1025,7 @@ mod tests {
     #[test]
     fn rotate_axis_y() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate(Vector3::Y, 90.0);
+        mat.rotate(Vector3::Y, 90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -957,8 +1047,7 @@ mod tests {
     #[test]
     fn rotate_axis_z() {
         let mut mat = Matrix4::new();
-
-        mat = mat.rotate(Vector3::Z, 90.0);
+        mat.rotate(Vector3::Z, 90.0);
 
         let vec = Vector4::new(5.0, 6.0, 3.0, 1.0);
 
@@ -983,10 +1072,9 @@ mod tests {
     #[test]
     fn transformed_vector() {
         let mut mat = Matrix4::new();
-        mat = mat
-            .scale(2.0, 1.0, 1.0)
-            .rotate_y(90.0)
-            .translate(5.0, 3.0, 4.0);
+        mat.scale(2.0, 1.0, 1.0);
+        mat.rotate_y(90.0);
+        mat.translate(5.0, 3.0, 4.0);
 
         let vec = Vector4::new(4.0, 4.0, 4.0, 1.0);
 
@@ -1013,7 +1101,9 @@ mod tests {
 
     #[test]
     fn simple_trans_vector() {
-        let mat = Matrix4::new().scale(2.0, 2.0, 2.0).rotate_x(90.0);
+        let mut mat = Matrix4::new();
+        mat.scale(2.0, 2.0, 2.0);
+        mat.rotate_x(90.0);
 
         let vec = Vector4::new(4.0, 6.0, 3.0, 1.0);
 
@@ -1127,7 +1217,7 @@ mod tests {
         let vec = Vector4::default();
 
         let mut mat = Matrix4::new();
-        mat = mat.translate(5.0, 7.0, 10.0);
+        mat.translate(5.0, 7.0, 10.0);
 
         let trans_vec = mat * vec;
 

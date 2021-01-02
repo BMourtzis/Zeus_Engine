@@ -8,11 +8,11 @@ pub struct Matrix3 {
 }
 
 impl Matrix3 {
-    pub fn new() -> Matrix3 {
+    pub fn new() -> Self {
         Matrix3 { entries: [0.0; 9] }
     }
 
-    pub fn identity() -> Matrix3 {
+    pub fn identity() -> Self {
         let mut result = Matrix3::new();
 
         result[0] = 1.0;
@@ -22,10 +22,7 @@ impl Matrix3 {
         result
     }
 
-    pub fn from_2d_vectors(
-        a: Vector2,
-        b: Vector2,
-    ) -> Matrix3 {
+    pub fn from_2d_vectors(a: Vector2,b: Vector2) -> Self {
         let mut result = Matrix3::new();
 
         result[0] = a.x;
@@ -43,26 +40,26 @@ impl Matrix3 {
         result
     }
 
-    pub fn invert(&self) -> Matrix3 {
-        let mut result = Matrix3::new();
+    pub fn invert(&mut self) {
+        let mut mat = Matrix3::new();
 
         for i in 0..9 {
-            result[i] = self[8 - i];
+            mat[i] = self[8 - i];
         }
 
-        result
+        *self = mat;
     }
 
-    pub fn transpose(&self) -> Matrix3 {
-        let mut result = Matrix3::new();
+    pub fn transpose(&mut self) {
+        let mut mat = Matrix3::new();
 
         for i in 0..3 {
             for j in 0..3 {
-                result[i * 3 + j] = self[j * 3 + i];
+                mat[i * 3 + j] = self[j * 3 + i];
             }
         }
 
-        result
+        *self = mat;
     }
 
     pub fn get_diagonal_vector(&self) -> Vector3 {
@@ -233,7 +230,8 @@ mod tests {
         let vec1 = Vector2::new(1.0, 2.0);
         let vec2 = Vector2::new(3.0, 4.0);
 
-        let mat = Matrix3::from_2d_vectors(vec1, vec2).transpose();
+        let mut mat = Matrix3::from_2d_vectors(vec1, vec2);
+        mat.transpose();
 
         assert_eq!(mat[0], 1.0);
         assert_eq!(mat[1], 3.0);
@@ -256,14 +254,14 @@ mod tests {
             mat[i] = (i + 1) as f32;
         }
 
-        let inv_mat = mat.invert();
-
-        for i in 0..9 {
-            assert_eq!(inv_mat[i], 9.0 - (i as f32));
-        }
-
         for i in 0..9 {
             assert_eq!(mat[i], (i + 1) as f32);
+        }
+
+        mat.invert();
+
+        for i in 0..9 {
+            assert_eq!(mat[i], 9.0 - (i as f32));
         }
     }
 
@@ -329,9 +327,11 @@ mod tests {
             mat[i] = (i + 1) as f32;
         }
 
-        let tran_mat = mat.transpose();
+        let new_mat = mat.clone();
 
-        let mul = mat * tran_mat;
+        mat.transpose();
+
+        let mul = new_mat * mat;
 
         assert_eq!(mul[0], 14.0);
         assert_eq!(mul[1], 32.0);

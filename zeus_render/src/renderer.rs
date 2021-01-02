@@ -5,7 +5,6 @@ use gfx_hal::{
         ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, ClearDepthStencil, Level, SubpassContents
     },
     device::Device,
-    format::Format,
     pool::CommandPool,
     pso::{
         ColorValue, Rect, Viewport
@@ -23,7 +22,9 @@ use super::{
     backend::BackendState,
     buffer::DepthBuffer,
     camera::CameraState,
-    constants::DIMS,
+    constants::{
+        DEPTH_IMAGE_FORMAT, DIMS
+    },
     device::DeviceState,
     error::NoLevelLoadedError,
     framebuffer::FramebufferState,
@@ -97,8 +98,11 @@ impl<B: Backend> RendererState<B> {
 
         let viewport = RendererState::create_viewport(&swapchain);
 
+        let mut camera_model = Matrix4::new_rotation_y(90.0);
+        camera_model.translate(0.0, -0.5, -1.0);
+
         camera.update_ubo(
-            Matrix4::new().translate(0.0, 0.0, 0.0).rotate_y(180.0),
+            camera_model,
             Matrix4::new(),
             Matrix4::perspective(
                 90.0_f32.to_radians(),
@@ -112,7 +116,7 @@ impl<B: Backend> RendererState<B> {
 
         let render_pass = RenderPassState::new(&swapchain, Rc::clone(&device));
 
-        let depth_buffer = if DepthBuffer::stencil_support(Rc::clone(&device), Format::D32SfloatS8Uint) {
+        let depth_buffer = if DepthBuffer::stencil_support(Rc::clone(&device), DEPTH_IMAGE_FORMAT) {
             Some(DepthBuffer::new(
                 Rc::clone(&device),
                 &backend.adapter,
@@ -202,7 +206,10 @@ impl<B: Backend> RendererState<B> {
             Rc::clone(&self.device)
         );
 
-        self.depth_buffer = if DepthBuffer::stencil_support(Rc::clone(&self.device), Format::D32SfloatS8Uint) {
+        self.depth_buffer = if DepthBuffer::stencil_support(
+            Rc::clone(&self.device),
+            DEPTH_IMAGE_FORMAT
+        ) {
             Some(DepthBuffer::new(
                 Rc::clone(&self.device),
                 &self.backend.adapter,
@@ -305,7 +312,8 @@ impl<B: Backend> RendererState<B> {
         self.swapchain.frame_index += 1;
 
         //Updates
-        self.call_updates();
+        self.update_camera();
+        self.update_colors();
         self.camera.update_buffer(frame_idx);
 
         let framedata = self.framebuffer.get_frame_data(frame_idx);
@@ -407,6 +415,13 @@ impl<B: Backend> RendererState<B> {
         self.recreate_swapchain = true;
     }
 
+    pub fn update_camera_rotation(&mut self, x: f64, _y: f64) {
+        let step = -0.5_f32;
+
+        self.camera
+            .update_model(Matrix4::new_rotation_y(x as f32 * step * self.timer.get_delta_f32()));
+    }
+
     //TODO: Need to update the 
     // pub fn update_fov(&mut self, delta: f32) {
     //     let step = 0.05_f32;
@@ -419,16 +434,11 @@ impl<B: Backend> RendererState<B> {
     //     // ));
     // }
 
-    fn call_updates(&mut self) {
-        self.update_camera();
-        self.update_colors();
-    }
-
     fn update_camera(&mut self) {
         let step = 0.005_f32;
 
         if input::is_btn_down(VirtualKeyCode::W) {
-            self.camera.update_model(Matrix4::new().translate(
+            self.camera.update_model(Matrix4::new_traslation(
                 0.0,
                 0.0,
                 step * self.timer.get_delta_f32(),
@@ -436,7 +446,7 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::S) {
-            self.camera.update_model(Matrix4::new().translate(
+            self.camera.update_model(Matrix4::new_traslation(
                 0.0,
                 0.0,
                 -step * self.timer.get_delta_f32(),
@@ -444,7 +454,7 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::A) {
-            self.camera.update_model(Matrix4::new().translate(
+            self.camera.update_model(Matrix4::new_traslation(
                 step * self.timer.get_delta_f32(),
                 0.0,
                 0.0,
@@ -452,7 +462,7 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::D) {
-            self.camera.update_model(Matrix4::new().translate(
+            self.camera.update_model(Matrix4::new_traslation(
                 -step * self.timer.get_delta_f32(),
                 0.0,
                 0.0,
@@ -460,29 +470,29 @@ impl<B: Backend> RendererState<B> {
         }
 
         if input::is_btn_down(VirtualKeyCode::R) {
-            self.camera.update_model(Matrix4::new().translate(
-                0.0,
-                step * self.timer.get_delta_f32(),
-                0.0,
-            ));
-        }
-
-        if input::is_btn_down(VirtualKeyCode::F) {
-            self.camera.update_model(Matrix4::new().translate(
+            self.camera.update_model(Matrix4::new_traslation(
                 0.0,
                 -step * self.timer.get_delta_f32(),
                 0.0,
             ));
         }
 
+        if input::is_btn_down(VirtualKeyCode::F) {
+            self.camera.update_model(Matrix4::new_traslation(
+                0.0,
+                step * self.timer.get_delta_f32(),
+                0.0,
+            ));
+        }
+
         if input::is_btn_down(VirtualKeyCode::Q) {
             self.camera
-                .update_model(Matrix4::new().rotate_y(0.1 * self.timer.get_delta_f32()));
+                .update_model(Matrix4::new_rotation_y(0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::E) {
             self.camera
-                .update_model(Matrix4::new().rotate_y(-0.1 * self.timer.get_delta_f32()));
+                .update_model(Matrix4::new_rotation_y(-0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::J) {
@@ -503,18 +513,6 @@ impl<B: Backend> RendererState<B> {
             ));
         }
     }
-
-    pub fn update_camera_rotation(&mut self, x: f64, _y: f64) {
-        let step = 0.5_f32;
-
-        self.camera
-            .update_model(Matrix4::new().rotate_y(x as f32 * -1.0 * step * self.timer.get_delta_f32()));
-
-        //NOTE: Removed for now as gimbal lock makes things weird
-        // self.camera
-        //     .update_model(Matrix4::new().rotate_x(y as f32 * step * self.timer.get_delta_f64()));
-    }
-
 
     fn update_colors(&mut self) {
         if input::is_btn_down(VirtualKeyCode::Key0) {
@@ -622,18 +620,12 @@ impl<B: Backend> RendererState<B> {
         }
     }
 
-    fn update_uniform_buffer(
-        &mut self,
-        value: f32,
-    ) {
+    fn update_uniform_buffer(&mut self, value: f32) {
         self.object.as_mut().unwrap()
             .update_color(&self.cur_color, value);
     }
 
-    fn update_bg(
-        &mut self,
-        value: f32,
-    ) {
+    fn update_bg(&mut self, value: f32) {
         match self.cur_color {
             Color::Red => self.bg_color[0] = value / 255.0,
             Color::Green => self.bg_color[1] = value / 255.0,

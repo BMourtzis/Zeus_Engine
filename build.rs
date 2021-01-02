@@ -17,6 +17,7 @@ fn main() {
     copy(&target_dir_path, "data/textures/viking_room.png");
 
     //models
+    copy(&target_dir_path, "data/models/viking_room.mtl");
     copy(&target_dir_path, "data/models/viking_room.obj");
 }
 

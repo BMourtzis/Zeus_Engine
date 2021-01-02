@@ -1,5 +1,7 @@
 use gfx_hal::{
-    format::Aspects,
+    format::{
+        Aspects, Format
+    },
     image::SubresourceRange,
     window::Extent2D
 };
@@ -17,6 +19,7 @@ pub const DIMS: Extent2D = Extent2D {
     height: 768,
 };
 
+#[allow(dead_code)]
 pub const COLOR_RANGE: SubresourceRange = SubresourceRange {
     aspects: Aspects::COLOR,
     level_start: 0,
@@ -83,3 +86,7 @@ pub const INDICES: [u32; 12] = [
     0, 1, 2, 2, 3, 0, //obj 1
     4, 5, 6, 6, 7, 4 //obj 2
 ];
+
+pub const FILE_EXT: &str = r"[.]([a-zA-Z]*)$";
+pub const IMAGE_FORMAT:Format = Format::Rgba8Srgb;
+pub const DEPTH_IMAGE_FORMAT:Format = Format::D32SfloatS8Uint;

@@ -179,13 +179,10 @@ pub struct UniformBufferObject {
 
 impl UniformBufferObject {
     pub fn new() -> UniformBufferObject {
-        let mut model = Matrix4::new();
-        model[5] *= -1.0;
-
         UniformBufferObject {
-            model,
+            model: Matrix4::new(),
             view: Matrix4::new(),
-            proj: Matrix4::new(),
+            proj: Matrix4::new_projection(),
         }
     }
 }
