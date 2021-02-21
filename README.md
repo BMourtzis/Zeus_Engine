@@ -28,6 +28,9 @@ A graphics engine built with Rust and Vulkan API.
 - [Rodio: Audio playback library](https://github.com/RustAudio/rodio)
 - [RON](https://github.com/ron-rs/ron) Use RON to load config from files.
 - [Profiler](https://github.com/glennw/thread_profiler)
-- [Deno_Core: js/ts intepreter](https://github.com/denoland/deno/tree/master/core)
-- [RustPython: Python intepreter](https://github.com/RustPython/RustPython)
+- [Rust Type](https://gitlab.redox-os.org/redox-os/rusttype)
+- [Asset Manager](https://github.com/a1phyr/assets_manager)
+- [ECS](https://github.com/amethyst/specs)
+- [Load OBJ files   ](https://github.com/Twinklebear/tobj)
+- [Mun Lang](https://github.com/mun-lang/mun)
 - [Miri: Static analysis tool](https://github.com/rust-lang/miri)
