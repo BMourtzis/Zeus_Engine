@@ -415,11 +415,14 @@ impl<B: Backend> RendererState<B> {
         self.recreate_swapchain = true;
     }
 
-    pub fn update_camera_rotation(&mut self, x: f64, _y: f64) {
+    pub fn update_camera_rotation(&mut self, mouse_x: f64, mouse_y: f64) {
         let step = -0.5_f32;
 
         self.camera
-            .update_model(Matrix4::new_rotation_y(x as f32 * step * self.timer.get_delta_f32()));
+            .update_model(Matrix4::new_rotation_y(mouse_x as f32 * step * self.timer.get_delta_f32()));
+
+        self.camera
+            .update_model(Matrix4::new_rotation_x(mouse_y as f32 * step * self.timer.get_delta_f32()));
     }
 
     //TODO: Need to update the 
@@ -487,12 +490,12 @@ impl<B: Backend> RendererState<B> {
 
         if input::is_btn_down(VirtualKeyCode::Q) {
             self.camera
-                .update_model(Matrix4::new_rotation_y(0.1 * self.timer.get_delta_f32()));
+                .update_model(Matrix4::new_rotation_z(0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::E) {
             self.camera
-                .update_model(Matrix4::new_rotation_y(-0.1 * self.timer.get_delta_f32()));
+                .update_model(Matrix4::new_rotation_z(-0.1 * self.timer.get_delta_f32()));
         }
 
         if input::is_btn_down(VirtualKeyCode::J) {

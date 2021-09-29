@@ -54,6 +54,10 @@ impl Stopwatch {
         1000.0 / (self.delta as f32)
     }
 
+    pub fn scale_delta_f32(&self, val: f32) -> f32 {
+        val * (self.delta as f32)
+    }
+
     pub fn check_delta(&self) -> u128 {
         self.last_frame_time.elapsed().as_millis()
     }
